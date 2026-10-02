@@ -59,6 +59,12 @@ class ValidationService:
             # 4. Physiological limit / OCR anomaly check
             if p.test_name in PHYSIOLOGICAL_LIMITS:
                 min_lim, max_lim = PHYSIOLOGICAL_LIMITS[p.test_name]
+                # Scale for direct /uL counts vs 10^3/uL standard (e.g. 7,500 /uL vs 7.5 10^3/uL)
+                if p.test_name == "WBC Count" and p.value > 200:
+                    min_lim, max_lim = 100.0, 200000.0
+                elif p.test_name == "Platelets" and p.value > 2000:
+                    min_lim, max_lim = 5000.0, 2000000.0
+
                 if p.value < min_lim or p.value > max_lim:
                     errors.append(f"Value {p.value} exceeds plausible physiological limits ({min_lim}-{max_lim}). Possible OCR decimal omission (e.g., 112 instead of 11.2).")
                     status = "warning"

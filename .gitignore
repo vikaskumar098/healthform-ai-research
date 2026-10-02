@@ -63,3 +63,8 @@ Desktop.ini
 .vscode/
 *.swp
 *.swo
+
+# Databases
+*.db
+*.sqlite
+*.sqlite3

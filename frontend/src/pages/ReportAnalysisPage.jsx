@@ -1,263 +1,334 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { reportService } from '../services/reportService';
-import StatusBadge from '../components/common/StatusBadge';
-import ConfidenceBadge from '../components/common/ConfidenceBadge';
-import ParameterDetailModal from '../components/reports/ParameterDetailModal';
-import ClaimVerificationMatrix from '../components/reports/ClaimVerificationMatrix';
-import { 
-  FileText, 
-  Activity, 
-  CheckCircle2, 
-  ArrowDownCircle, 
-  ArrowUpCircle, 
-  HelpCircle, 
-  Layers, 
-  Sparkles, 
-  ShieldCheck, 
-  GitCompare, 
-  RefreshCw, 
-  AlertCircle, 
-  Search, 
-  Filter, 
-  Info, 
-  ExternalLink,
+import {
+  CheckCircle2,
+  ArrowUp,
+  ArrowDown,
+  HelpCircle,
+  ChevronDown,
+  ChevronUp,
+  AlertCircle,
+  Loader2,
+  ArrowLeft,
+  GitCompare,
+  RefreshCw,
+  Info,
   BookOpen,
-  Eye
+  ChevronRight,
 } from 'lucide-react';
 
+/* ─── Status helpers (user-friendly) ─────────────────── */
+const STATUS_MAP = {
+  within_reported_range: {
+    label: 'Normal',
+    emoji: '🟢',
+    bg: 'bg-emerald-500/12 border-emerald-500/30',
+    text: 'text-emerald-400',
+    icon: CheckCircle2,
+    pill: 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30',
+  },
+  below_reported_range: {
+    label: 'Low',
+    emoji: '🔵',
+    bg: 'bg-blue-500/10 border-blue-500/25',
+    text: 'text-blue-400',
+    icon: ArrowDown,
+    pill: 'bg-blue-500/15 text-blue-400 border border-blue-500/30',
+  },
+  above_reported_range: {
+    label: 'High',
+    emoji: '🔴',
+    bg: 'bg-amber-500/10 border-amber-500/25',
+    text: 'text-amber-400',
+    icon: ArrowUp,
+    pill: 'bg-amber-500/15 text-amber-400 border border-amber-500/30',
+  },
+  unknown: {
+    label: 'No range info',
+    emoji: '⚪',
+    bg: 'bg-slate-800/60 border-slate-700/50',
+    text: 'text-slate-400',
+    icon: HelpCircle,
+    pill: 'bg-slate-700/50 text-slate-400 border border-slate-700',
+  },
+};
+
+const getStatus = (s) => STATUS_MAP[s] || STATUS_MAP.unknown;
+
+/* ─── Single parameter card ──────────────────────────── */
+const ParameterCard = ({ param }) => {
+  const [expanded, setExpanded] = useState(false);
+  const s = getStatus(param.status);
+  const Icon = s.icon;
+
+  return (
+    <div className={`rounded-2xl border p-4 transition-all ${s.bg}`}>
+      <div
+        className="flex items-center justify-between cursor-pointer"
+        onClick={() => setExpanded(!expanded)}
+      >
+        <div className="flex items-center space-x-3 flex-1 min-w-0">
+          <span className="text-xl flex-shrink-0">{s.emoji}</span>
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-white text-sm truncate">{param.test_name}</p>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Reference: {param.reference_range?.raw || 'Not stated'}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center space-x-3 flex-shrink-0 ml-3">
+          <div className="text-right">
+            <p className={`font-bold text-lg ${s.text}`}>{param.value}</p>
+            <p className="text-xs text-slate-400">{param.unit}</p>
+          </div>
+          <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${s.pill}`}>
+            {s.label}
+          </span>
+          {expanded
+            ? <ChevronUp className="w-4 h-4 text-slate-500" />
+            : <ChevronDown className="w-4 h-4 text-slate-500" />
+          }
+        </div>
+      </div>
+
+      {/* Expanded details */}
+      {expanded && (
+        <div className="mt-4 pt-4 border-t border-white/[0.06] space-y-2 text-xs text-slate-400">
+          {param.reference_range?.low !== undefined && (
+            <p>Reference range: <span className="text-slate-200 font-medium">
+              {param.reference_range.low} – {param.reference_range.high} {param.unit}
+            </span></p>
+          )}
+          {param.status !== 'within_reported_range' && param.status !== 'unknown' && (
+            <div className="p-3 rounded-xl bg-slate-950/60 border border-white/[0.05] text-slate-300">
+              <span className={`font-semibold ${s.text}`}>
+                {param.status === 'below_reported_range' ? 'This result is below' : 'This result is above'}
+              </span>{' '}
+              the reference range printed on your report.
+              This is for your awareness — a single out-of-range result does not mean there is something seriously wrong.
+              Please discuss this with your doctor.
+            </div>
+          )}
+          {param.validation_errors?.length > 0 && (
+            <p className="text-amber-400">⚠ {param.validation_errors.join(', ')}</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+/* ─── Evidence card ──────────────────────────────────── */
+const EvidenceCard = ({ ev }) => (
+  <div className="p-4 rounded-2xl bg-slate-900/60 border border-white/[0.06] space-y-2">
+    <div className="flex items-center justify-between">
+      <p className="font-semibold text-brand-300 text-sm">{ev.title}</p>
+      {ev.score && (
+        <span className="text-xs text-slate-500 font-mono">
+          {(ev.score * 100).toFixed(0)}% match
+        </span>
+      )}
+    </div>
+    <p className="text-xs text-slate-400 leading-relaxed line-clamp-4">
+      "{ev.content}"
+    </p>
+    <p className="text-xs text-slate-600 font-mono">Source: {ev.source}</p>
+  </div>
+);
+
+/* ─── MAIN PAGE ──────────────────────────────────────── */
 const ReportAnalysisPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [activeTab, setActiveTab] = useState('parameters'); // 'parameters' | 'explanation' | 'verification' | 'raw'
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('ALL');
-  const [selectedParam, setSelectedParam] = useState(null);
-  const [isReanalyzing, setIsReanalyzing] = useState(false);
+  const [reanalyzing, setReanalyzing] = useState(false);
+  const [showSources, setShowSources] = useState(false);
+  const [filterStatus, setFilterStatus] = useState('ALL');
 
-  useEffect(() => {
-    fetchReportData();
-  }, [id]);
+  useEffect(() => { fetchReport(); }, [id]);
 
-  const fetchReportData = async () => {
+  const fetchReport = async () => {
     setLoading(true);
     try {
       const data = await reportService.getReport(id);
       setReport(data);
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to fetch report data.');
-    } finally {
-      setLoading(false);
-    }
+      setError(err.response?.data?.detail || 'Could not load this report.');
+    } finally { setLoading(false); }
   };
 
   const handleReanalyze = async () => {
-    setIsReanalyzing(true);
+    setReanalyzing(true);
     try {
       const updated = await reportService.reanalyzeReport(id);
       setReport(updated);
     } catch (err) {
-      alert("Re-analysis failed: " + (err.response?.data?.detail || err.message));
-    } finally {
-      setIsReanalyzing(false);
-    }
+      alert('Re-analysis failed: ' + (err.response?.data?.detail || err.message));
+    } finally { setReanalyzing(false); }
   };
 
+  /* ── loading / error ── */
   if (loading) {
     return (
-      <div className="min-h-[70vh] flex flex-col items-center justify-center space-y-3">
-        <RefreshCw className="w-8 h-8 text-brand-400 animate-spin" />
-        <p className="text-xs text-slate-400 font-mono">Loading report parameters and audit records...</p>
+      <div className="min-h-[60vh] flex flex-col items-center justify-center space-y-3">
+        <Loader2 className="w-8 h-8 text-brand-400 animate-spin" />
+        <p className="text-slate-400 text-sm">Loading your results…</p>
       </div>
     );
   }
 
   if (error || !report) {
     return (
-      <div className="max-w-xl mx-auto my-12 p-6 glass-card rounded-2xl border border-rose-800/60 text-center space-y-4">
+      <div className="max-w-md mx-auto my-16 p-8 rounded-3xl border border-rose-800/50 bg-rose-950/20 text-center space-y-4">
         <AlertCircle className="w-10 h-10 text-rose-400 mx-auto" />
-        <h2 className="text-lg font-bold text-white">Report Not Found</h2>
-        <p className="text-xs text-slate-400">{error || "Could not retrieve report data."}</p>
-        <Link to="/dashboard" className="inline-block px-4 py-2 rounded-xl text-xs font-semibold bg-brand-600 text-white">
-          Return to Dashboard
+        <h2 className="text-lg font-bold text-white">Report not found</h2>
+        <p className="text-sm text-slate-400">{error || 'Could not retrieve report data.'}</p>
+        <Link to="/history" className="inline-flex items-center space-x-1.5 px-5 py-2.5 rounded-xl bg-brand-600 text-white text-sm font-semibold transition hover:bg-brand-500">
+          <ArrowLeft className="w-4 h-4" />
+          <span>Back to My Reports</span>
         </Link>
       </div>
     );
   }
 
-  const parameters = report.parameters || [];
+  const params = report.parameters || [];
   const analysis = report.analysis || {};
-  const claims = analysis.claims || [];
-  const evidenceList = analysis.evidence || [];
+  const evidence = analysis.evidence || [];
 
-  // Filter parameters
-  const filteredParams = parameters.filter((p) => {
-    const matchesSearch = p.test_name.toLowerCase().includes(searchTerm.toLowerCase());
-    if (statusFilter === 'ALL') return matchesSearch;
-    return matchesSearch && p.status === statusFilter;
-  });
+  /* ── counts ── */
+  const normal = params.filter(p => p.status === 'within_reported_range').length;
+  const low    = params.filter(p => p.status === 'below_reported_range').length;
+  const high   = params.filter(p => p.status === 'above_reported_range').length;
+  const total  = params.length;
+  const needAttention = low + high;
 
-  // Summary counts
-  const totalCount = parameters.length;
-  const withinCount = parameters.filter(p => p.status === 'within_reported_range').length;
-  const belowCount = parameters.filter(p => p.status === 'below_reported_range').length;
-  const aboveCount = parameters.filter(p => p.status === 'above_reported_range').length;
-  const unknownCount = parameters.filter(p => p.status === 'unknown').length;
+  /* ── filtered params ── */
+  const filtered = filterStatus === 'ALL'
+    ? params
+    : params.filter(p => p.status === filterStatus);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-      
-      {/* Top Banner: Patient Metadata */}
-      <div className="glass-card rounded-2xl p-6 border border-slate-800 shadow-xl space-y-4">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center space-x-2">
-              <span className="px-2.5 py-1 rounded bg-brand-500/20 text-brand-400 border border-brand-500/30 text-xs font-mono font-semibold">
-                LAB REPORT AUDIT
-              </span>
-              <span className="text-xs text-slate-500 font-mono">ID: {report.id.substring(0, 8)}</span>
-            </div>
-            <h1 className="text-2xl font-bold text-white tracking-tight mt-1">
-              {report.patient_name || 'Anonymous Subject'}
-            </h1>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Specimen Collected: <strong className="text-slate-200">{report.report_date || report.upload_date}</strong> • File: <span className="font-mono text-slate-300">{report.filename}</span>
-            </p>
-          </div>
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10 space-y-8">
 
-          <div className="flex items-center space-x-3">
-            <button
-              onClick={handleReanalyze}
-              disabled={isReanalyzing}
-              className="px-3.5 py-2 rounded-xl text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 flex items-center space-x-1.5 transition-colors"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 text-brand-400 ${isReanalyzing ? 'animate-spin' : ''}`} />
-              <span>{isReanalyzing ? 'Re-analyzing...' : 'Re-run Analysis'}</span>
-            </button>
-
-            <Link
-              to={`/comparison?initial=${report.id}`}
-              className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white flex items-center space-x-1.5 shadow-md shadow-emerald-600/20 transition-all"
-            >
-              <GitCompare className="w-3.5 h-3.5" />
-              <span>Compare with History</span>
-            </Link>
-          </div>
-        </div>
-
-        {/* 4 Summary Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
-          
-          <div className="p-3.5 rounded-xl bg-slate-950/60 border border-slate-800">
-            <div className="flex items-center justify-between text-slate-400 text-xs mb-1 font-medium">
-              <span>Parameters Detected</span>
-              <Layers className="w-4 h-4 text-brand-400" />
-            </div>
-            <p className="text-2xl font-bold text-white">{totalCount}</p>
-            <p className="text-[10px] text-slate-400">Validated analytical tests</p>
-          </div>
-
-          <div className="p-3.5 rounded-xl bg-emerald-950/20 border border-emerald-900/40">
-            <div className="flex items-center justify-between text-emerald-400 text-xs mb-1 font-medium">
-              <span>Within Reported Range</span>
-              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-            </div>
-            <p className="text-2xl font-bold text-emerald-400">{withinCount}</p>
-            <p className="text-[10px] text-slate-400">Normal interval adherence</p>
-          </div>
-
-          <div className="p-3.5 rounded-xl bg-blue-950/20 border border-blue-900/40">
-            <div className="flex items-center justify-between text-blue-400 text-xs mb-1 font-medium">
-              <span>Below Reported Range</span>
-              <ArrowDownCircle className="w-4 h-4 text-blue-400" />
-            </div>
-            <p className="text-2xl font-bold text-blue-400">{belowCount}</p>
-            <p className="text-[10px] text-slate-400">Below printed threshold</p>
-          </div>
-
-          <div className="p-3.5 rounded-xl bg-rose-950/20 border border-rose-900/40">
-            <div className="flex items-center justify-between text-rose-400 text-xs mb-1 font-medium">
-              <span>Above Reported Range</span>
-              <ArrowUpCircle className="w-4 h-4 text-rose-400" />
-            </div>
-            <p className="text-2xl font-bold text-rose-400">{aboveCount}</p>
-            <p className="text-[10px] text-slate-400">Above printed threshold</p>
-          </div>
-
+      {/* ── Back + Actions ── */}
+      <div className="flex items-center justify-between animate-fade-in-up">
+        <button
+          onClick={() => navigate(-1)}
+          className="flex items-center space-x-1.5 text-sm text-slate-400 hover:text-white transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span>Back</span>
+        </button>
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={handleReanalyze}
+            disabled={reanalyzing}
+            className="flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/[0.07] transition-colors"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${reanalyzing ? 'animate-spin' : ''}`} />
+            <span>{reanalyzing ? 'Re-analyzing…' : 'Re-analyze'}</span>
+          </button>
+          <Link
+            to={`/comparison?initial=${report.id}`}
+            className="flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white transition-colors shadow-lg shadow-emerald-600/25"
+          >
+            <GitCompare className="w-3.5 h-3.5" />
+            <span>Compare Reports</span>
+          </Link>
         </div>
       </div>
 
-      {/* Tabs Navigation */}
-      <div className="flex border-b border-slate-800 space-x-2 text-xs font-semibold">
-        {[
-          { key: 'parameters', label: 'Structured Parameters', count: totalCount, icon: Layers },
-          { key: 'explanation', label: 'AI Explanation & RAG Citations', icon: Sparkles },
-          { key: 'verification', label: 'Claim Verification Matrix', count: claims.length, icon: ShieldCheck },
-          { key: 'raw', label: 'Raw Extracted Document', icon: FileText },
-        ].map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.key;
-          return (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className={`flex items-center space-x-2 px-4 py-3 border-b-2 transition-all ${
-                isActive 
-                  ? 'border-brand-500 text-brand-400 bg-slate-900/40' 
-                  : 'border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-900/20'
-              }`}
-            >
-              <Icon className="w-4 h-4" />
-              <span>{tab.label}</span>
-              {tab.count !== undefined && (
-                <span className={`px-1.5 py-0.2 text-[10px] rounded-full font-mono ${
-                  isActive ? 'bg-brand-500/20 text-brand-300' : 'bg-slate-800 text-slate-400'
-                }`}>
-                  {tab.count}
-                </span>
-              )}
-            </button>
-          );
-        })}
+      {/* ── Report header ── */}
+      <div className="glass-card border border-white/[0.07] rounded-3xl p-6 sm:p-8 space-y-6 animate-fade-in-up animate-fade-in-up-delay-1">
+        <div>
+          <p className="text-xs text-slate-500 font-mono mb-1">
+            {report.report_date || report.upload_date} · {report.filename}
+          </p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-white">
+            {report.patient_name ? `${report.patient_name}'s Results` : 'Your Lab Results'}
+          </h1>
+        </div>
+
+        {/* Summary scorecards */}
+        {total > 0 && (
+          <div className="grid grid-cols-3 gap-3 sm:gap-4">
+            <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 text-center">
+              <p className="text-2xl sm:text-3xl font-bold text-emerald-400">{normal}</p>
+              <p className="text-xs text-emerald-300 mt-1 font-medium">Normal</p>
+            </div>
+            <div className="p-4 rounded-2xl bg-blue-500/10 border border-blue-500/25 text-center">
+              <p className="text-2xl sm:text-3xl font-bold text-blue-400">{low}</p>
+              <p className="text-xs text-blue-300 mt-1 font-medium">Low</p>
+            </div>
+            <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/25 text-center">
+              <p className="text-2xl sm:text-3xl font-bold text-amber-400">{high}</p>
+              <p className="text-xs text-amber-300 mt-1 font-medium">High</p>
+            </div>
+          </div>
+        )}
+
+        {/* Overall status message */}
+        <div className={`p-4 rounded-2xl text-sm leading-relaxed ${
+          needAttention === 0
+            ? 'bg-emerald-500/10 border border-emerald-500/25 text-emerald-300'
+            : needAttention <= 2
+            ? 'bg-amber-500/10 border border-amber-500/25 text-amber-300'
+            : 'bg-rose-500/10 border border-rose-500/25 text-rose-300'
+        }`}>
+          {needAttention === 0
+            ? `✅ All ${total} test results are within normal range. Looking good!`
+            : `⚠️ ${needAttention} of ${total} results are outside the reference range. See the details below and talk to your doctor if you have concerns.`
+          }
+        </div>
       </div>
 
-      {/* TAB 1: Structured Parameter Table */}
-      {activeTab === 'parameters' && (
-        <div className="space-y-4">
-          
-          {/* Controls Bar: Search & Filter */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-            <div className="relative w-full sm:w-80">
-              <Search className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search parameter (e.g., Hemoglobin)..."
-                className="w-full pl-9 pr-3.5 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs text-slate-200 focus:outline-none focus:border-brand-500"
-              />
+      {/* ── Summary explanation ── */}
+      {analysis.summary && (
+        <div className="glass-card border border-white/[0.07] rounded-3xl p-6 sm:p-8 space-y-4 animate-fade-in-up animate-fade-in-up-delay-2">
+          <h2 className="text-lg font-bold text-white flex items-center space-x-2">
+            <span>📋</span>
+            <span>Summary</span>
+          </h2>
+          <p className="text-sm sm:text-base text-slate-300 leading-relaxed">
+            {analysis.summary}
+          </p>
+          {analysis.explanation && (
+            <div className="pt-4 border-t border-white/[0.06] text-sm text-slate-400 leading-relaxed whitespace-pre-line">
+              {analysis.explanation}
             </div>
+          )}
+          {analysis.uncertainty && (
+            <div className="flex items-start space-x-2.5 p-3.5 rounded-xl bg-amber-950/30 border border-amber-800/40 text-xs text-amber-300">
+              <Info className="w-4 h-4 flex-shrink-0 mt-0.5" />
+              <p>{analysis.uncertainty}</p>
+            </div>
+          )}
+        </div>
+      )}
 
-            <div className="flex items-center space-x-2 w-full sm:w-auto overflow-x-auto text-xs">
-              <span className="text-slate-400 text-[11px] font-medium mr-1 flex items-center">
-                <Filter className="w-3.5 h-3.5 mr-1" /> Filter:
-              </span>
+      {/* ── Parameter Cards ── */}
+      {total > 0 && (
+        <div className="space-y-4 animate-fade-in-up">
+          {/* Filter bar */}
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <h2 className="text-lg font-bold text-white">Your Test Results</h2>
+            <div className="flex items-center space-x-1.5 text-xs">
               {[
                 { label: 'All', value: 'ALL' },
-                { label: 'Below Range', value: 'below_reported_range' },
-                { label: 'Above Range', value: 'above_reported_range' },
-                { label: 'Within Range', value: 'within_reported_range' },
-              ].map((f) => (
+                { label: '🟢 Normal', value: 'within_reported_range' },
+                { label: '🔵 Low', value: 'below_reported_range' },
+                { label: '🔴 High', value: 'above_reported_range' },
+              ].map(f => (
                 <button
                   key={f.value}
-                  onClick={() => setStatusFilter(f.value)}
-                  className={`px-2.5 py-1 rounded-lg transition-colors whitespace-nowrap ${
-                    statusFilter === f.value
-                      ? 'bg-brand-600 text-white font-medium'
-                      : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800'
+                  onClick={() => setFilterStatus(f.value)}
+                  className={`px-3 py-1.5 rounded-xl transition-all font-medium ${
+                    filterStatus === f.value
+                      ? 'bg-brand-600 text-white shadow-lg shadow-brand-600/20'
+                      : 'bg-slate-800 text-slate-400 hover:text-white border border-white/[0.06]'
                   }`}
                 >
                   {f.label}
@@ -266,188 +337,45 @@ const ReportAnalysisPage = () => {
             </div>
           </div>
 
-          {/* Table */}
-          <div className="glass-card rounded-2xl overflow-hidden border border-slate-800 shadow-xl">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-xs">
-                <thead>
-                  <tr className="bg-slate-950/70 border-b border-slate-800 text-slate-400 font-medium">
-                    <th className="py-3 px-4">Test Name</th>
-                    <th className="py-3 px-4 text-center">Result</th>
-                    <th className="py-3 px-4">Unit</th>
-                    <th className="py-3 px-4">Reported Reference Range</th>
-                    <th className="py-3 px-4">Status</th>
-                    <th className="py-3 px-4 text-center">Confidence</th>
-                    <th className="py-3 px-4 text-right">Audit</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800/60">
-                  {filteredParams.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} className="py-8 text-center text-slate-500">
-                        No parameters match your search criteria.
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredParams.map((p, idx) => (
-                      <tr 
-                        key={idx} 
-                        className={`hover:bg-slate-800/40 transition-colors cursor-pointer ${
-                          p.status === 'below_reported_range' 
-                            ? 'bg-blue-950/10' 
-                            : p.status === 'above_reported_range'
-                            ? 'bg-rose-950/10'
-                            : ''
-                        }`}
-                        onClick={() => setSelectedParam(p)}
-                      >
-                        <td className="py-3.5 px-4 font-semibold text-white">
-                          {p.test_name}
-                        </td>
-                        <td className="py-3.5 px-4 text-center font-mono font-bold text-slate-100 text-sm">
-                          {p.value}
-                        </td>
-                        <td className="py-3.5 px-4 text-slate-400 font-mono">
-                          {p.unit}
-                        </td>
-                        <td className="py-3.5 px-4 font-medium text-slate-300">
-                          {p.reference_range?.raw || 'Not Stated'}
-                        </td>
-                        <td className="py-3.5 px-4">
-                          <StatusBadge status={p.status} flag={p.flag} />
-                        </td>
-                        <td className="py-3.5 px-4 text-center">
-                          <ConfidenceBadge 
-                            confidence={p.confidence} 
-                            validationStatus={p.validation_status}
-                            errors={p.validation_errors}
-                          />
-                        </td>
-                        <td className="py-3.5 px-4 text-right">
-                          <button
-                            onClick={(e) => { e.stopPropagation(); setSelectedParam(p); }}
-                            className="p-1.5 rounded-lg bg-slate-800 hover:bg-brand-600/30 text-slate-300 hover:text-brand-300 transition-colors"
-                            title="Inspect Parameter Details"
-                          >
-                            <Eye className="w-3.5 h-3.5" />
-                          </button>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-        </div>
-      )}
-
-      {/* TAB 2: AI Grounded Explanation & RAG */}
-      {activeTab === 'explanation' && (
-        <div className="space-y-6">
-          
-          {/* Executive Summary Card */}
-          <div className="glass-card rounded-2xl p-6 border border-slate-800 space-y-3">
-            <div className="flex items-center space-x-2 text-brand-400">
-              <Sparkles className="w-5 h-5" />
-              <h3 className="text-sm font-bold uppercase tracking-wider text-white">
-                Grounded Clinical Synthesis
-              </h3>
-            </div>
-            <p className="text-xs sm:text-sm text-slate-300 leading-relaxed font-medium">
-              {analysis.summary}
-            </p>
-          </div>
-
-          {/* Main Structured Findings Section */}
-          <div className="glass-card rounded-2xl p-6 border border-slate-800 space-y-4">
-            <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-              Detailed Findings in Relation to Reported Intervals
-            </h4>
-            
-            <div className="prose prose-invert prose-xs max-w-none text-slate-300 space-y-2 whitespace-pre-line leading-relaxed font-sans">
-              {analysis.explanation}
-            </div>
-
-            {/* Uncertainty Statement */}
-            <div className="pt-4 border-t border-slate-800/80 bg-slate-950/40 p-4 rounded-xl text-xs text-slate-400 space-y-1">
-              <div className="flex items-center space-x-1.5 text-amber-400 font-semibold uppercase tracking-wider text-[11px]">
-                <Info className="w-3.5 h-3.5" />
-                <span>Assay Uncertainty & Limitations:</span>
-              </div>
-              <p>{analysis.uncertainty}</p>
-            </div>
-          </div>
-
-          {/* RAG Context & Evidence Cards */}
-          <div className="glass-card rounded-2xl p-6 border border-slate-800 space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <BookOpen className="w-4 h-4 text-emerald-400" />
-                <h4 className="text-xs font-bold uppercase tracking-wider text-white">
-                  Curated Reference Evidence (RAG Corpus)
-                </h4>
-              </div>
-              <span className="text-[11px] font-mono text-slate-500">Isolated Knowledge Base</span>
-            </div>
-
-            {evidenceList.length === 0 ? (
-              <p className="text-xs text-slate-500">Relevant reference information was not found in the local knowledge base.</p>
+          {/* Cards */}
+          <div className="space-y-3">
+            {filtered.length === 0 ? (
+              <p className="text-center text-slate-500 py-8 text-sm">
+                No results in this category.
+              </p>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {evidenceList.map((ev, i) => (
-                  <div key={i} className="p-4 rounded-xl bg-slate-950/60 border border-slate-800 space-y-2 text-xs">
-                    <div className="flex items-center justify-between">
-                      <span className="font-semibold text-brand-300">{ev.title}</span>
-                      <span className="text-[10px] font-mono text-slate-400 bg-slate-900 px-2 py-0.5 rounded border border-slate-800">
-                        Score: {ev.score ? (ev.score * 100).toFixed(1) + '%' : 'Verified'}
-                      </span>
-                    </div>
-                    <p className="text-[11px] font-medium text-slate-400">Section: {ev.section}</p>
-                    <p className="text-slate-300 text-[11px] leading-relaxed line-clamp-4">
-                      "{ev.content}"
-                    </p>
-                    <p className="text-[10px] text-slate-400 pt-1 font-mono">
-                      Source: {ev.source}
-                    </p>
-                  </div>
-                ))}
-              </div>
+              filtered.map((p, i) => (
+                <ParameterCard key={i} param={p} />
+              ))
             )}
           </div>
-
         </div>
       )}
 
-      {/* TAB 3: Claim Verification Matrix */}
-      {activeTab === 'verification' && (
-        <ClaimVerificationMatrix claims={claims} />
-      )}
+      {/* ── Disclaimer ── */}
+      <div className="p-5 rounded-2xl bg-slate-900/50 border border-white/[0.05] text-xs text-slate-500 leading-relaxed animate-fade-in-up">
+        <strong className="text-slate-400">Important:</strong> This tool explains your lab results but does not provide a medical diagnosis. Out-of-range values may or may not indicate a health problem — only a qualified doctor can properly interpret your results in the context of your full medical history.
+      </div>
 
-      {/* TAB 4: Raw Extracted Document */}
-      {activeTab === 'raw' && (
-        <div className="glass-card rounded-2xl p-6 border border-slate-800 space-y-3">
-          <div className="flex items-center justify-between">
-            <h4 className="text-xs font-semibold text-white uppercase tracking-wider">
-              Raw Extracted Document Stream (OCR Output)
-            </h4>
-            <span className="text-[11px] font-mono text-slate-500">
-              {report.raw_text ? `${report.raw_text.split('\n').length} lines` : '0 lines'}
-            </span>
-          </div>
-          <pre className="p-4 rounded-xl bg-slate-950 border border-slate-800 font-mono text-xs text-slate-300 overflow-x-auto max-h-[600px] leading-relaxed">
-            {report.raw_text || "No raw text recorded."}
-          </pre>
+      {/* ── Sources (collapsible) ── */}
+      {evidence.length > 0 && (
+        <div className="space-y-3 animate-fade-in-up">
+          <button
+            onClick={() => setShowSources(!showSources)}
+            className="flex items-center space-x-2 text-sm text-slate-400 hover:text-white transition-colors"
+          >
+            <BookOpen className="w-4 h-4" />
+            <span>Medical references used ({evidence.length})</span>
+            {showSources ? <ChevronUp className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+          </button>
+          {showSources && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {evidence.map((ev, i) => (
+                <EvidenceCard key={i} ev={ev} />
+              ))}
+            </div>
+          )}
         </div>
-      )}
-
-      {/* Parameter Detail Modal */}
-      {selectedParam && (
-        <ParameterDetailModal 
-          parameter={selectedParam} 
-          onClose={() => setSelectedParam(null)} 
-        />
       )}
 
     </div>

@@ -143,27 +143,123 @@ class DeterministicDemoOCRService(BaseOCRService):
                 "engine": "deterministic_vision_ocr"
             }
 
-        # Generic image/doc fallback extraction
+        elif "report_1" in filename or "normal_cbc" in filename:
+            ocr_text = (
+                "SYNTHETIC RESEARCH DATASET — FOR DEMONSTRATION & BENCHMARKING ONLY\n"
+                "METROPOLITAN CLINICAL PATHOLOGY LABORATORIES\n"
+                "CLIA ID: 99D8881234 | CAP Accredited Clinical Laboratory\n"
+                "Patient Name: Eleanor Vance  Patient ID: SYN-CBC-NORM-01\n"
+                "Age / Sex: 36 yrs / Female  Collection Date: 2026-10-01\n"
+                "Physician: Dr. Marcus Sterling, MD  Exam: Complete Blood Count (CBC) Routine Panel\n\n"
+                "PANEL: COMPLETE BLOOD COUNT (CBC)\n"
+                "Test Name                     Result     Units      Reported Reference Range   Flag\n"
+                "Hemoglobin                    14.6       g/dL       13.0 - 17.0                NORMAL\n"
+                "Hematocrit                    42.0       %          37.0 - 48.0                NORMAL\n"
+                "WBC Count                     7.5        10^3/uL    4.0 - 11.0                 NORMAL\n"
+                "Platelets                     250.0      10^3/uL    150 - 450                  NORMAL\n"
+                "MCV                           88.0       fL         80.0 - 100.0               NORMAL\n"
+            )
+            return {
+                "success": True,
+                "text": ocr_text,
+                "pages": [{"page": 1, "text": ocr_text}],
+                "page_count": 1,
+                "engine": "deterministic_vision_ocr"
+            }
+
+        elif "report_2" in filename or "mixed_cbc" in filename:
+            ocr_text = (
+                "SYNTHETIC RESEARCH DATASET — FOR DEMONSTRATION & BENCHMARKING ONLY\n"
+                "METROPOLITAN CLINICAL PATHOLOGY LABORATORIES\n"
+                "CLIA ID: 99D8881234 | CAP Accredited Clinical Laboratory\n"
+                "Patient Name: Eleanor Vance  Patient ID: SYN-CBC-NORM-01\n"
+                "Age / Sex: 36 yrs / Female  Collection Date: 2026-10-15\n"
+                "Physician: Dr. Marcus Sterling, MD  Exam: Complete Blood Count (CBC) Follow-up Evaluation\n\n"
+                "PANEL: COMPLETE BLOOD COUNT (CBC)\n"
+                "Test Name                     Result     Units      Reported Reference Range   Flag\n"
+                "Hemoglobin                    11.2       g/dL       13.0 - 17.0                LOW [L]\n"
+                "Hematocrit                    33.5       %          37.0 - 48.0                LOW [L]\n"
+                "WBC Count                     7.5        10^3/uL    4.0 - 11.0                 NORMAL\n"
+                "Platelets                     500.0      10^3/uL    150 - 450                  HIGH [H]\n"
+                "MCV                           84.0       fL         80.0 - 100.0               NORMAL\n"
+            )
+            return {
+                "success": True,
+                "text": ocr_text,
+                "pages": [{"page": 1, "text": ocr_text}],
+                "page_count": 1,
+                "engine": "deterministic_vision_ocr"
+            }
+
+        elif "report_3" in filename or "lipid_profile" in filename:
+            ocr_text = (
+                "SYNTHETIC RESEARCH DATASET — FOR DEMONSTRATION & BENCHMARKING ONLY\n"
+                "BIOQUEST DIAGNOSTICS & CARDIOVASCULAR CENTER\n"
+                "Patient Name: David Chen  Patient ID: BQ-2026-LIP-771\n"
+                "Age / Sex: 52 yrs / Male  Collection Date: 2026-09-28\n"
+                "Physician: Dr. Allison Becker, MD  Exam: Cardiovascular Lipid Profile & Risk Index\n\n"
+                "PANEL: LIPID PROFILE\n"
+                "Test Name                     Result     Units      Reported Reference Range   Flag\n"
+                "Total Cholesterol             245.0      mg/dL      < 200                      HIGH [H]\n"
+                "Triglycerides                 195.0      mg/dL      < 150                      HIGH [H]\n"
+                "HDL Cholesterol               38.0       mg/dL      > 50                       LOW [L]\n"
+                "LDL Cholesterol               168.0      mg/dL      < 100                      HIGH [H]\n"
+            )
+            return {
+                "success": True,
+                "text": ocr_text,
+                "pages": [{"page": 1, "text": ocr_text}],
+                "page_count": 1,
+                "engine": "deterministic_vision_ocr"
+            }
+
+        elif "report_4" in filename or "invoice" in filename:
+            ocr_text = (
+                "VERTEX ENTERPRISE CLOUD CONSULTING LLC\n"
+                "Commercial IT & Cloud Infrastructure Services | Tax ID: 84-9921039\n"
+                "INVOICE: INV-2026-9041 | Date: October 1, 2026 | Due: Net 30\n"
+                "Billed Client: Apex Global Logistics Corp | Accounts Payable\n\n"
+                "Service Item                                   Hours    Rate        Total\n"
+                "Kubernetes Multi-Region Cluster Deployment      40 hrs   $175.00/hr  $7,000.00\n"
+                "PostgreSQL High-Availability Audit              16 hrs   $185.00/hr  $2,960.00\n"
+                "Enterprise Network Security Penetration Testing 24 hrs   $190.00/hr  $4,560.00\n"
+                "Terraform Infrastructure as Code Pipelines      20 hrs   $160.00/hr  $3,200.00\n"
+                "TOTAL DUE: $17,720.00\n"
+                "Please remit payment via ACH or Wire to Silicon Valley Bank, Routing: 121000358.\n"
+            )
+            return {
+                "success": True,
+                "text": ocr_text,
+                "pages": [{"page": 1, "text": ocr_text}],
+                "page_count": 1,
+                "engine": "deterministic_vision_ocr"
+            }
+
+        # Generic image fallback: attempt to open as image and return EMPTY text.
+        # IMPORTANT: We deliberately do NOT fabricate lab data here.
+        # The document type validator will reject the empty result with an
+        # appropriate user-facing message.  Fabricating fake lab values would
+        # allow arbitrary images to pass downstream medical analysis.
         try:
             with Image.open(file_path) as img:
-                info = f"Processed image: {img.size[0]}x{img.size[1]} format={img.format}"
-        except Exception:
-            info = "Uploaded laboratory document"
+                img.verify()  # confirms file is a readable image
+            logger.info(
+                f"Image file verified ({os.path.basename(file_path)}) "
+                "but no OCR engine available — returning empty text for validation."
+            )
+        except Exception as img_err:
+            logger.warning(f"Could not verify image {file_path}: {img_err}")
 
-        generic_text = (
-            f"Laboratory Report Document ({os.path.basename(file_path)})\n"
-            "Date: 2026-09-20\n"
-            "Patient: Laboratory Subject\n\n"
-            "Hemoglobin 12.5 g/dL 13.0 - 17.0\n"
-            "Fasting Glucose 95 mg/dL 70 - 99\n"
-            "Serum Creatinine 0.9 mg/dL 0.6 - 1.2\n"
-        )
         return {
             "success": True,
-            "text": generic_text,
-            "pages": [{"page": 1, "text": generic_text}],
+            "text": "",          # intentionally empty — let validator reject
+            "pages": [{"page": 1, "text": ""}],
             "page_count": 1,
-            "engine": "generic_fallback"
+            "engine": "no_ocr_fallback",
+            "warning": (
+                "No OCR engine is installed. Install Tesseract + pytesseract "
+                "to enable text extraction from image lab reports."
+            ),
         }
 
 

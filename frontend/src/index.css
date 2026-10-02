@@ -1,49 +1,105 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   body {
-    @apply bg-slate-900 text-slate-100 font-sans antialiased selection:bg-brand-500 selection:text-white min-h-screen;
+    @apply bg-slate-950 text-slate-100 font-sans antialiased selection:bg-brand-500 selection:text-white min-h-screen;
   }
 }
 
+/* ====================================================
+   GLASS CARD SYSTEM
+   ==================================================== */
 .glass-card {
-  background: rgba(15, 23, 42, 0.75);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(15, 23, 42, 0.80);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
 }
 
 .glass-card-hover {
-  transition: all 0.2s ease-in-out;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .glass-card-hover:hover {
-  border-color: rgba(56, 189, 248, 0.3);
-  transform: translateY(-2px);
-  box-shadow: 0 12px 24px -10px rgba(12, 143, 233, 0.15);
+  transform: translateY(-3px);
+  box-shadow: 0 20px 40px -12px rgba(12, 143, 233, 0.2);
 }
 
+/* ====================================================
+   GRADIENTS & GLOWS
+   ==================================================== */
 .medical-gradient {
   background: linear-gradient(135deg, #0c8fe9 0%, #059669 100%);
 }
 
-.glow-subtle {
-  box-shadow: 0 0 25px -5px rgba(12, 143, 233, 0.2);
+.glow-brand {
+  box-shadow: 0 0 30px -5px rgba(12, 143, 233, 0.35);
 }
 
-/* Custom smooth scrollbar */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+.glow-emerald {
+  box-shadow: 0 0 25px -5px rgba(5, 150, 105, 0.3);
 }
-::-webkit-scrollbar-track {
-  background: #0f172a;
+
+/* ====================================================
+   HERO BACKGROUND GRID
+   ==================================================== */
+.bg-grid {
+  background-image: 
+    linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
 }
-::-webkit-scrollbar-thumb {
-  background: #334155;
-  border-radius: 9999px;
+
+/* ====================================================
+   CUSTOM SCROLLBAR
+   ==================================================== */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #0f172a; }
+::-webkit-scrollbar-thumb { background: #334155; border-radius: 9999px; }
+::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+/* ====================================================
+   ANIMATIONS
+   ==================================================== */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
-::-webkit-scrollbar-thumb:hover {
-  background: #475569;
+
+@keyframes pulse-slow {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.5; }
+}
+
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.5s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+.animate-fade-in-up-delay-1 { animation-delay: 0.1s; }
+.animate-fade-in-up-delay-2 { animation-delay: 0.2s; }
+.animate-fade-in-up-delay-3 { animation-delay: 0.3s; }
+
+.animate-pulse-slow {
+  animation: pulse-slow 2.5s ease-in-out infinite;
+}
+
+/* Status pill colours */
+.status-normal  { @apply bg-emerald-500/15 text-emerald-400 border border-emerald-500/30; }
+.status-low     { @apply bg-blue-500/15   text-blue-400   border border-blue-500/30;   }
+.status-high    { @apply bg-amber-500/15  text-amber-400  border border-amber-500/30;  }
+.status-unknown { @apply bg-slate-700/50  text-slate-400  border border-slate-700;     }
+
+/* Progress bar fill */
+.progress-fill {
+  background: linear-gradient(90deg, #0c8fe9, #6366f1, #10b981);
+  background-size: 200% 100%;
+  animation: shimmer 2s linear infinite;
+  transition: width 0.5s ease-out;
 }

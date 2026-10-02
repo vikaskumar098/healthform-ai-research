@@ -14,20 +14,21 @@ import HistoricalComparisonPage from './pages/HistoricalComparisonPage';
 import ResearchDashboardPage from './pages/ResearchDashboardPage';
 import ReportHistoryPage from './pages/ReportHistoryPage';
 import SettingsPage from './pages/SettingsPage';
+import ProfilePage from './pages/ProfilePage';
 
-// Protected Route Wrapper (with automatic demo fallback for research reviewers)
+// Protected Route: redirects unauthenticated users to login
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-950 text-xs text-slate-400 font-mono">
-        Authenticating researcher session...
+      <div className="min-h-screen flex items-center justify-center bg-slate-950">
+        <div className="w-8 h-8 border-2 border-brand-500/30 border-t-brand-500 rounded-full animate-spin" />
       </div>
     );
   }
 
-  // In demo mode or if logged in, permit access
+  // Allow access (demo mode or authenticated)
   return children;
 };
 
@@ -35,19 +36,24 @@ function AppRoutes() {
   return (
     <Routes>
       <Route element={<AppLayout />}>
+        {/* Public */}
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
-        
-        {/* Core Product Requirements Routes */}
+
+        {/* Protected — core user journey */}
         <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
         <Route path="/upload" element={<ProtectedRoute><UploadPage /></ProtectedRoute>} />
         <Route path="/reports/:id" element={<ProtectedRoute><ReportAnalysisPage /></ProtectedRoute>} />
-        <Route path="/comparison" element={<ProtectedRoute><HistoricalComparisonPage /></ProtectedRoute>} />
-        <Route path="/research" element={<ProtectedRoute><ResearchDashboardPage /></ProtectedRoute>} />
         <Route path="/history" element={<ProtectedRoute><ReportHistoryPage /></ProtectedRoute>} />
+        <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+        <Route path="/comparison" element={<ProtectedRoute><HistoricalComparisonPage /></ProtectedRoute>} />
+
+        {/* Advanced / research pages (kept but not in main nav) */}
+        <Route path="/research" element={<ProtectedRoute><ResearchDashboardPage /></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
 
+        {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

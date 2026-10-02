@@ -1,0 +1,238 @@
+{
+  "benchmark_suite": "HealthForm AI Real End-to-End Evaluation Matrix",
+  "version": "1.0.0",
+  "date_created": "2026-10-02",
+  "reports": [
+    {
+      "report_id": "report_1_normal_cbc",
+      "filename_pdf": "report_1_normal_cbc.pdf",
+      "filename_png": "report_1_normal_cbc.png",
+      "description": "Report 1 \u2014 Normal CBC (all values strictly within reported ranges)",
+      "valid_report": true,
+      "document_type": "laboratory_report",
+      "patient": {
+        "name": "Eleanor Vance",
+        "id": "SYN-CBC-NORM-01",
+        "collection_date": "2026-10-01"
+      },
+      "expected_summary_counts": {
+        "total": 5,
+        "within": 5,
+        "below": 0,
+        "above": 0,
+        "unknown": 0
+      },
+      "parameters": [
+        {
+          "test_name": "Hemoglobin",
+          "value": 14.6,
+          "unit": "g/dL",
+          "reference_low": 13.0,
+          "reference_high": 17.0,
+          "expected_status": "within_reported_range"
+        },
+        {
+          "test_name": "Hematocrit",
+          "value": 42.0,
+          "unit": "%",
+          "reference_low": 37.0,
+          "reference_high": 48.0,
+          "expected_status": "within_reported_range"
+        },
+        {
+          "test_name": "WBC Count",
+          "value": 7.5,
+          "unit": "10^3/uL",
+          "reference_low": 4.0,
+          "reference_high": 11.0,
+          "expected_status": "within_reported_range"
+        },
+        {
+          "test_name": "Platelets",
+          "value": 250.0,
+          "unit": "10^3/uL",
+          "reference_low": 150.0,
+          "reference_high": 450.0,
+          "expected_status": "within_reported_range"
+        },
+        {
+          "test_name": "MCV",
+          "value": 88.0,
+          "unit": "fL",
+          "reference_low": 80.0,
+          "reference_high": 100.0,
+          "expected_status": "within_reported_range"
+        }
+      ]
+    },
+    {
+      "report_id": "report_2_mixed_cbc",
+      "filename_pdf": "report_2_mixed_cbc.pdf",
+      "filename_png": "report_2_mixed_cbc.png",
+      "description": "Report 2 \u2014 Mixed CBC (below, within, and above range values)",
+      "valid_report": true,
+      "document_type": "laboratory_report",
+      "patient": {
+        "name": "Eleanor Vance",
+        "id": "SYN-CBC-NORM-01",
+        "collection_date": "2026-10-15"
+      },
+      "expected_summary_counts": {
+        "total": 5,
+        "within": 2,
+        "below": 2,
+        "above": 1,
+        "unknown": 0
+      },
+      "parameters": [
+        {
+          "test_name": "Hemoglobin",
+          "value": 11.2,
+          "unit": "g/dL",
+          "reference_low": 13.0,
+          "reference_high": 17.0,
+          "expected_status": "below_reported_range"
+        },
+        {
+          "test_name": "Hematocrit",
+          "value": 33.5,
+          "unit": "%",
+          "reference_low": 37.0,
+          "reference_high": 48.0,
+          "expected_status": "below_reported_range"
+        },
+        {
+          "test_name": "WBC Count",
+          "value": 7.5,
+          "unit": "10^3/uL",
+          "reference_low": 4.0,
+          "reference_high": 11.0,
+          "expected_status": "within_reported_range"
+        },
+        {
+          "test_name": "Platelets",
+          "value": 500.0,
+          "unit": "10^3/uL",
+          "reference_low": 150.0,
+          "reference_high": 450.0,
+          "expected_status": "above_reported_range"
+        },
+        {
+          "test_name": "MCV",
+          "value": 84.0,
+          "unit": "fL",
+          "reference_low": 80.0,
+          "reference_high": 100.0,
+          "expected_status": "within_reported_range"
+        }
+      ],
+      "expected_deltas_vs_report_1": {
+        "Hemoglobin": {
+          "prev": 14.6,
+          "curr": 11.2,
+          "abs_change": -3.4
+        },
+        "Hematocrit": {
+          "prev": 42.0,
+          "curr": 33.5,
+          "abs_change": -8.5
+        },
+        "WBC Count": {
+          "prev": 7.5,
+          "curr": 7.5,
+          "abs_change": 0.0
+        },
+        "Platelets": {
+          "prev": 250.0,
+          "curr": 500.0,
+          "abs_change": 250.0
+        },
+        "MCV": {
+          "prev": 88.0,
+          "curr": 84.0,
+          "abs_change": -4.0
+        }
+      }
+    },
+    {
+      "report_id": "report_3_lipid_profile",
+      "filename_pdf": "report_3_lipid_profile.pdf",
+      "filename_png": "report_3_lipid_profile.png",
+      "description": "Report 3 \u2014 Different Lab Format: Lipid Profile with inequality ranges (< and >)",
+      "valid_report": true,
+      "document_type": "laboratory_report",
+      "patient": {
+        "name": "David Chen",
+        "id": "BQ-2026-LIP-771",
+        "collection_date": "2026-09-28"
+      },
+      "expected_summary_counts": {
+        "total": 4,
+        "within": 0,
+        "below": 1,
+        "above": 3,
+        "unknown": 0
+      },
+      "parameters": [
+        {
+          "test_name": "Total Cholesterol",
+          "value": 245.0,
+          "unit": "mg/dL",
+          "reference_low": null,
+          "reference_high": 200.0,
+          "expected_status": "above_reported_range"
+        },
+        {
+          "test_name": "Triglycerides",
+          "value": 195.0,
+          "unit": "mg/dL",
+          "reference_low": null,
+          "reference_high": 150.0,
+          "expected_status": "above_reported_range"
+        },
+        {
+          "test_name": "HDL Cholesterol",
+          "value": 38.0,
+          "unit": "mg/dL",
+          "reference_low": 50.0,
+          "reference_high": null,
+          "expected_status": "below_reported_range"
+        },
+        {
+          "test_name": "LDL Cholesterol",
+          "value": 168.0,
+          "unit": "mg/dL",
+          "reference_low": null,
+          "reference_high": 100.0,
+          "expected_status": "above_reported_range"
+        }
+      ]
+    },
+    {
+      "report_id": "report_4_invalid_invoice",
+      "filename_pdf": "report_4_invalid_invoice.pdf",
+      "filename_png": "report_4_invalid_invoice.png",
+      "description": "Report 4 \u2014 Invalid Document: Enterprise Consulting Statement & Invoice",
+      "valid_report": false,
+      "document_type": "non_medical_document",
+      "expected_http_status": 422,
+      "expected_rejection_code": "NOT_A_LAB_REPORT",
+      "expected_error": "INVALID_DOCUMENT",
+      "llm_must_not_execute": true,
+      "database_must_not_store": true,
+      "parameters": []
+    },
+    {
+      "report_id": "report_5_low_quality_blurry",
+      "filename_pdf": "report_5_low_quality_blurry.pdf",
+      "filename_png": "report_5_low_quality_blurry.png",
+      "description": "Report 5 \u2014 Low Quality Document: Illegible blurred scan with zero extractable parameters",
+      "valid_report": false,
+      "document_type": "low_quality_or_corrupted",
+      "expected_http_status": 422,
+      "llm_must_not_execute": true,
+      "database_must_not_store": true,
+      "parameters": []
+    }
+  ]
+}

@@ -1,0 +1,867 @@
+{
+  "test_run": "2026-10-02T11:28:11.797445",
+  "environment": {
+    "backend_url": "http://127.0.0.1:8000",
+    "mongodb": "Connected (localhost:27017)",
+    "ai_mode": "DEMO_MODE (Deterministic Grounded Engine)"
+  },
+  "reports_tested": [],
+  "api_tests": [
+    {
+      "endpoint": "/api/auth/demo-login",
+      "method": "POST",
+      "status_code": 200,
+      "duration_ms": 23.79,
+      "result": "PASS"
+    },
+    {
+      "endpoint": "/api/reports/upload",
+      "file": "report_1_normal_cbc.pdf",
+      "method": "POST",
+      "status_code": 200,
+      "duration_ms": 22.62,
+      "result": "PASS"
+    },
+    {
+      "endpoint": "/api/reports/upload",
+      "file": "report_1_normal_cbc.png",
+      "method": "POST",
+      "status_code": 200,
+      "duration_ms": 9.59,
+      "result": "PASS"
+    },
+    {
+      "endpoint": "/api/reports/upload",
+      "file": "report_2_mixed_cbc.pdf",
+      "method": "POST",
+      "status_code": 200,
+      "duration_ms": 33.54,
+      "result": "PASS"
+    },
+    {
+      "endpoint": "/api/reports/upload",
+      "file": "report_3_lipid_profile.pdf",
+      "method": "POST",
+      "status_code": 200,
+      "duration_ms": 23.03,
+      "result": "PASS"
+    },
+    {
+      "endpoint": "/api/reports/upload",
+      "file": "report_4_invalid_invoice.pdf",
+      "method": "POST",
+      "status_code": 422,
+      "duration_ms": 19.0,
+      "result": "PASS"
+    },
+    {
+      "endpoint": "/api/reports/upload",
+      "file": "report_5_low_quality_blurry.pdf",
+      "method": "POST",
+      "status_code": 422,
+      "duration_ms": 8.24,
+      "result": "PASS"
+    }
+  ],
+  "extraction_tests": [],
+  "classification_tests": [],
+  "llm_tests": [],
+  "security_tests": [],
+  "performance_metrics": {
+    "report_1_pdf_duration_ms": 22.62,
+    "report_1_png_duration_ms": 9.59,
+    "report_2_pdf_duration_ms": 33.54,
+    "historical_comparison_duration_ms": 4.31,
+    "report_3_pdf_duration_ms": 23.03,
+    "report_4_pdf_duration_ms": 19.0,
+    "report_5_pdf_duration_ms": 8.24
+  },
+  "failed_tests": [],
+  "passed_tests": [
+    {
+      "test_name": "Security Gate: Disallow .exe upload",
+      "status": "PASS",
+      "details": {
+        "status_code": 400,
+        "response": {
+          "detail": "Unsupported file type '.exe'. Please upload a PDF, PNG, JPG, or JPEG laboratory report."
+        }
+      },
+      "timestamp": "2026-10-02T11:28:11.823909"
+    },
+    {
+      "test_name": "Security Gate: Disallow .txt upload",
+      "status": "PASS",
+      "details": {
+        "status_code": 400,
+        "response": "{\"detail\":\"Unsupported file type '.txt'. Please upload a PDF, PNG, JPG, or JPEG laboratory report.\"}"
+      },
+      "timestamp": "2026-10-02T11:28:11.825608"
+    },
+    {
+      "test_name": "Security Gate: Disallow empty file",
+      "status": "PASS",
+      "details": {
+        "status_code": 400,
+        "response": "{\"detail\":\"The uploaded file is empty. Please upload a valid laboratory report.\"}"
+      },
+      "timestamp": "2026-10-02T11:28:11.827132"
+    },
+    {
+      "test_name": "Security Gate: Disallow invalid MIME type",
+      "status": "PASS",
+      "details": {
+        "status_code": 400,
+        "response": "{\"detail\":\"File type not supported. Please upload a PDF, PNG, JPG, or JPEG laboratory report.\"}"
+      },
+      "timestamp": "2026-10-02T11:28:11.828717"
+    },
+    {
+      "test_name": "Report 1 PDF: Pipeline Success (HTTP 200)",
+      "status": "PASS",
+      "details": {
+        "status": 200
+      },
+      "timestamp": "2026-10-02T11:28:11.851556"
+    },
+    {
+      "test_name": "Report 1 PDF: Value accuracy 'Hemoglobin' (14.6)",
+      "status": "PASS",
+      "details": {
+        "ground_truth": 14.6,
+        "actual": 14.6
+      },
+      "timestamp": "2026-10-02T11:28:11.851579"
+    },
+    {
+      "test_name": "Report 1 PDF: Unit accuracy 'Hemoglobin' (g/dL)",
+      "status": "PASS",
+      "details": {
+        "ground_truth": "g/dL",
+        "actual": "g/dL"
+      },
+      "timestamp": "2026-10-02T11:28:11.851582"
+    },
+    {
+      "test_name": "Report 1 PDF: Range status 'Hemoglobin' (within_reported_range)",
+      "status": "PASS",
+      "details": {
+        "ground_truth": "within_reported_range",
+        "actual": "within_reported_range"
+      },
+      "timestamp": "2026-10-02T11:28:11.851585"
+    },
+    {
+      "test_name": "Report 1 PDF: Value accuracy 'Hematocrit' (42.0)",
+      "status": "PASS",
+      "details": {
+        "ground_truth": 42.0,
+        "actual": 42.0
+      },
+      "timestamp": "2026-10-02T11:28:11.851590"
+    },
+    {
+      "test_name": "Report 1 PDF: Unit accuracy 'Hematocrit' (%)",
+      "status": "PASS",
+      "details": {
+        "ground_truth": "%",
+        "actual": "%"
+      },
+      "timestamp": "2026-10-02T11:28:11.851593"
+    },
+    {
+      "test_name": "Report 1 PDF: Range status 'Hematocrit' (within_reported_range)",
+      "status": "PASS",
+      "details": {
+        "ground_truth": "within_reported_range",
+        "actual": "within_reported_range"
+      },
+      "timestamp": "2026-10-02T11:28:11.851596"
+    },
+    {
+      "test_name": "Report 1 PDF: Value accuracy 'WBC Count' (7.5)",
+      "status": "PASS",
+      "details": {
+        "ground_truth": 7.5,
+        "actual": 7.5
+      },
+      "timestamp": "2026-10-02T11:28:11.851599"
+    },
+    {
+      "test_name": "Report 1 PDF: Unit accuracy 'WBC Count' (10^3/uL)",
+      "status": "PASS",
+      "details": {
+        "ground_truth": "10^3/uL",
+        "actual": "10^3/uL"
+      },
+      "timestamp": "2026-10-02T11:28:11.851601"
+    },
+    {
+      "test_name": "Report 1 PDF: Range status 'WBC Count' (within_reported_range)",
+      "status": "PASS",
+      "details": {
+        "ground_truth": "within_reported_range",
+        "actual": "within_reported_range"
+      },
+      "timestamp": "2026-10-02T11:28:11.851604"
+    },
+    {
+      "test_name": "Report 1 PDF: Value accuracy 'Platelets' (250.0)",
+      "status": "PASS",
+      "details": {
+        "ground_truth": 250.0,
+        "actual": 250.0
+      },
+      "timestamp": "2026-10-02T11:28:11.851608"
+    },
+    {
+      "test_name": "Report 1 PDF: Unit accuracy 'Platelets' (10^3/uL)",
+      "status": "PASS",
+      "details": {
+        "ground_truth": "10^3/uL",
+        "actual": "10^3/uL"
+      },
+      "timestamp": "2026-10-02T11:28:11.851611"
+    },
+    {
+      "test_name": "Report 1 PDF: Range status 'Platelets' (within_reported_range)",
+      "status": "PASS",
+      "details": {
+        "ground_truth": "within_reported_range",
+        "actual": "within_reported_range"
+      },
+      "timestamp": "2026-10-02T11:28:11.851613"
+    },
+    {
+      "test_name": "Report 1 PDF: Value accuracy 'MCV' (88.0)",
+      "status": "PASS",
+      "details": {
+        "ground_truth": 88.0,
+        "actual": 88.0
+      },
+      "timestamp": "2026-10-02T11:28:11.851616"
+    },
+    {
+      "test_name": "Report 1 PDF: Unit accuracy 'MCV' (fL)",
+      "status": "PASS",
+      "details": {
+        "ground_truth": "fL",
+        "actual": "fL"
+      },
+      "timestamp": "2026-10-02T11:28:11.851618"
+    },
+    {
+      "test_name": "Report 1 PDF: Range status 'MCV' (within_reported_range)",
+      "status": "PASS",
+      "details": {
+        "ground_truth": "within_reported_range",
+        "actual": "within_reported_range"
+      },
+      "timestamp": "2026-10-02T11:28:11.851621"
+    },
+    {
+      "test_name": "Report 1 PDF: All Parameters Within Reported Range",
+      "status": "PASS",
+      "details": {
+        "statuses": {
+          "Hemoglobin": "within_reported_range",
+          "Hematocrit": "within_reported_range",
+          "WBC Count": "within_reported_range",
+          "Platelets": "within_reported_range",
+          "MCV": "within_reported_range"
+        }
+      },
+      "timestamp": "2026-10-02T11:28:11.851631"
+    },
+    {
+      "test_name": "Report 1 PDF LLM: Non-Diagnostic Safety Constraint",
+      "status": "PASS",
+      "details": {
+        "has_diagnostic_prescriptions": false
+      },
+      "timestamp": "2026-10-02T11:28:11.851670"
+    },
+    {
+      "test_name": "Report 1 PDF LLM: Generates Structured Atomic Claims",
+      "status": "PASS",
+      "details": {
+        "claim_count": 4
+      },
+      "timestamp": "2026-10-02T11:28:11.851673"
+    },
+    {
+      "test_name": "Report 1 PDF LLM: Claim Verification Engine Status Assignment",
+      "status": "PASS",
+      "details": {
+        "claims_summary": [
+          {
+            "claim": "A total of 5 parameters were measured within the l",
+            "status": "SUPPORTED"
+          },
+          {
+            "claim": "In physiological reference literature (Red Blood C",
+            "status": "SUPPORTED"
+          },
+          {
+            "claim": "In physiological reference literature (White Blood",
+            "status": "SUPPORTED"
+          }
+        ]
+      },
+      "timestamp": "2026-10-02T11:28:11.851678"
+    },
+    {
+      "test_name": "Report 1 PDF: Database Persistence & Retrieval",
+      "status": "PASS",
+      "details": {
+        "status": 200
+      },
+      "timestamp": "2026-10-02T11:28:11.854470"
+    },
+    {
+      "test_name": "Report 1 PNG: Image Upload & OCR Processing",
+      "status": "PASS",
+      "details": {
+        "status": 200,
+        "duration_ms": 9.59
+      },
+      "timestamp": "2026-10-02T11:28:11.864330"
+    },
+    {
+      "test_name": "Report 1: PDF vs PNG Extraction Equivalence",
+      "status": "PASS",
+      "details": {
+        "pdf_count": 5,
+        "png_count": 5
+      },
+      "timestamp": "2026-10-02T11:28:11.864357"
+    },
+    {
+      "test_name": "Report 2 PDF: Pipeline Success (HTTP 200)",
+      "status": "PASS",
+      "details": {
+        "status": 200
+      },
+      "timestamp": "2026-10-02T11:28:11.898228"
+    },
+    {
+      "test_name": "Report 2 PDF: Value accuracy 'Hemoglobin' (11.2)",
+      "status": "PASS",
+      "details": {
+        "ground_truth": 11.2,
+        "actual": 11.2
+      },
+      "timestamp": "2026-10-02T11:28:11.898263"
+    },
+    {
+      "test_name": "Report 2 PDF: Unit accuracy 'Hemoglobin' (g/dL)",
+      "status": "PASS",
+      "details": {
+        "ground_truth": "g/dL",
+        "actual": "g/dL"
+      },
+      "timestamp": "2026-10-02T11:28:11.898269"
+    },
+    {
+      "test_name": "Report 2 PDF: Range status 'Hemoglobin' (below_reported_range)",
+      "status": "PASS",
+      "details": {
+        "ground_truth": "below_reported_range",
+        "actual": "below_reported_range"
+      },
+      "timestamp": "2026-10-02T11:28:11.898273"
+    },
+    {
+      "test_name": "Report 2 PDF: Value accuracy 'Hematocrit' (33.5)",
+      "status": "PASS",
+      "details": {
+        "ground_truth": 33.5,
+        "actual": 33.5
+      },
+      "timestamp": "2026-10-02T11:28:11.898279"
+    },
+    {
+      "test_name": "Report 2 PDF: Unit accuracy 'Hematocrit' (%)",
+      "status": "PASS",
+      "details": {
+        "ground_truth": "%",
+        "actual": "%"
+      },
+      "timestamp": "2026-10-02T11:28:11.898284"
+    },
+    {
+      "test_name": "Report 2 PDF: Range status 'Hematocrit' (below_reported_range)",
+      "status": "PASS",
+      "details": {
+        "ground_truth": "below_reported_range",
+        "actual": "below_reported_range"
+      },
+      "timestamp": "2026-10-02T11:28:11.898293"
+    },
+    {
+      "test_name": "Report 2 PDF: Value accuracy 'WBC Count' (7.5)",
+      "status": "PASS",
+      "details": {
+        "ground_truth": 7.5,
+        "actual": 7.5
+      },
+      "timestamp": "2026-10-02T11:28:11.898298"
+    },
+    {
+      "test_name": "Report 2 PDF: Unit accuracy 'WBC Count' (10^3/uL)",
+      "status": "PASS",
+      "details": {
+        "ground_truth": "10^3/uL",
+        "actual": "10^3/uL"
+      },
+      "timestamp": "2026-10-02T11:28:11.898302"
+    },
+    {
+      "test_name": "Report 2 PDF: Range status 'WBC Count' (within_reported_range)",
+      "status": "PASS",
+      "details": {
+        "ground_truth": "within_reported_range",
+        "actual": "within_reported_range"
+      },
+      "timestamp": "2026-10-02T11:28:11.898306"
+    },
+    {
+      "test_name": "Report 2 PDF: Value accuracy 'Platelets' (500.0)",
+      "status": "PASS",
+      "details": {
+        "ground_truth": 500.0,
+        "actual": 500.0
+      },
+      "timestamp": "2026-10-02T11:28:11.898311"
+    },
+    {
+      "test_name": "Report 2 PDF: Unit accuracy 'Platelets' (10^3/uL)",
+      "status": "PASS",
+      "details": {
+        "ground_truth": "10^3/uL",
+        "actual": "10^3/uL"
+      },
+      "timestamp": "2026-10-02T11:28:11.898315"
+    },
+    {
+      "test_name": "Report 2 PDF: Range status 'Platelets' (above_reported_range)",
+      "status": "PASS",
+      "details": {
+        "ground_truth": "above_reported_range",
+        "actual": "above_reported_range"
+      },
+      "timestamp": "2026-10-02T11:28:11.898319"
+    },
+    {
+      "test_name": "Report 2 PDF: Value accuracy 'MCV' (84.0)",
+      "status": "PASS",
+      "details": {
+        "ground_truth": 84.0,
+        "actual": 84.0
+      },
+      "timestamp": "2026-10-02T11:28:11.898323"
+    },
+    {
+      "test_name": "Report 2 PDF: Unit accuracy 'MCV' (fL)",
+      "status": "PASS",
+      "details": {
+        "ground_truth": "fL",
+        "actual": "fL"
+      },
+      "timestamp": "2026-10-02T11:28:11.898327"
+    },
+    {
+      "test_name": "Report 2 PDF: Range status 'MCV' (within_reported_range)",
+      "status": "PASS",
+      "details": {
+        "ground_truth": "within_reported_range",
+        "actual": "within_reported_range"
+      },
+      "timestamp": "2026-10-02T11:28:11.898333"
+    },
+    {
+      "test_name": "Report 2 Classification: Hemoglobin (Expected: below_reported_range)",
+      "status": "PASS",
+      "details": {
+        "expected": "below_reported_range",
+        "actual": "below_reported_range"
+      },
+      "timestamp": "2026-10-02T11:28:11.898343"
+    },
+    {
+      "test_name": "Report 2 Classification: Hematocrit (Expected: below_reported_range)",
+      "status": "PASS",
+      "details": {
+        "expected": "below_reported_range",
+        "actual": "below_reported_range"
+      },
+      "timestamp": "2026-10-02T11:28:11.898349"
+    },
+    {
+      "test_name": "Report 2 Classification: WBC Count (Expected: within_reported_range)",
+      "status": "PASS",
+      "details": {
+        "expected": "within_reported_range",
+        "actual": "within_reported_range"
+      },
+      "timestamp": "2026-10-02T11:28:11.898354"
+    },
+    {
+      "test_name": "Report 2 Classification: Platelets (Expected: above_reported_range)",
+      "status": "PASS",
+      "details": {
+        "expected": "above_reported_range",
+        "actual": "above_reported_range"
+      },
+      "timestamp": "2026-10-02T11:28:11.898362"
+    },
+    {
+      "test_name": "Report 2 Classification: MCV (Expected: within_reported_range)",
+      "status": "PASS",
+      "details": {
+        "expected": "within_reported_range",
+        "actual": "within_reported_range"
+      },
+      "timestamp": "2026-10-02T11:28:11.898368"
+    },
+    {
+      "test_name": "Report 2 PDF LLM: Non-Diagnostic Safety Constraint",
+      "status": "PASS",
+      "details": {
+        "has_diagnostic_prescriptions": false
+      },
+      "timestamp": "2026-10-02T11:28:11.898442"
+    },
+    {
+      "test_name": "Report 2 PDF LLM: Generates Structured Atomic Claims",
+      "status": "PASS",
+      "details": {
+        "claim_count": 8
+      },
+      "timestamp": "2026-10-02T11:28:11.898448"
+    },
+    {
+      "test_name": "Report 2 PDF LLM: Claim Verification Engine Status Assignment",
+      "status": "PASS",
+      "details": {
+        "claims_summary": [
+          {
+            "claim": "The Hemoglobin result (11.2 g/dL) is below the lab",
+            "status": "SUPPORTED"
+          },
+          {
+            "claim": "The Hematocrit result (33.5 %) is below the labora",
+            "status": "SUPPORTED"
+          },
+          {
+            "claim": "The Platelets result (500.0 10^3/uL) is above the ",
+            "status": "SUPPORTED"
+          }
+        ]
+      },
+      "timestamp": "2026-10-02T11:28:11.898457"
+    },
+    {
+      "test_name": "Historical Comparison API (HTTP 200)",
+      "status": "PASS",
+      "details": {
+        "status": 200,
+        "duration_ms": 4.31
+      },
+      "timestamp": "2026-10-02T11:28:11.908315"
+    },
+    {
+      "test_name": "Historical Delta: Hemoglobin (-3.4 g/dL)",
+      "status": "PASS",
+      "details": {
+        "test_name": "Hemoglobin",
+        "previous_value": 14.6,
+        "current_value": 11.2,
+        "unit": "g/dL",
+        "absolute_change": -3.4,
+        "percentage_change": -23.29,
+        "previous_date": "2026-10-01",
+        "current_date": "2026-10-15"
+      },
+      "timestamp": "2026-10-02T11:28:11.908363"
+    },
+    {
+      "test_name": "Historical Delta: Platelets (+250 10^3/uL)",
+      "status": "PASS",
+      "details": {
+        "test_name": "Platelets",
+        "previous_value": 250.0,
+        "current_value": 500.0,
+        "unit": "10^3/uL",
+        "absolute_change": 250.0,
+        "percentage_change": 100.0,
+        "previous_date": "2026-10-01",
+        "current_date": "2026-10-15"
+      },
+      "timestamp": "2026-10-02T11:28:11.908368"
+    },
+    {
+      "test_name": "Historical Comparison: Strictly Neutral Mathematical Output",
+      "status": "PASS",
+      "details": {
+        "observation": "Historical delta analysis computed across 5 matching laboratory parameters. Values represent mathematical changes between timestamps without clinical diagnosis."
+      },
+      "timestamp": "2026-10-02T11:28:11.908373"
+    },
+    {
+      "test_name": "Report 3 PDF: Pipeline Success (HTTP 200)",
+      "status": "PASS",
+      "details": {
+        "status": 200
+      },
+      "timestamp": "2026-10-02T11:28:11.931699"
+    },
+    {
+      "test_name": "Report 3 PDF: Value accuracy 'Total Cholesterol' (245.0)",
+      "status": "PASS",
+      "details": {
+        "ground_truth": 245.0,
+        "actual": 245.0
+      },
+      "timestamp": "2026-10-02T11:28:11.931720"
+    },
+    {
+      "test_name": "Report 3 PDF: Unit accuracy 'Total Cholesterol' (mg/dL)",
+      "status": "PASS",
+      "details": {
+        "ground_truth": "mg/dL",
+        "actual": "mg/dL"
+      },
+      "timestamp": "2026-10-02T11:28:11.931724"
+    },
+    {
+      "test_name": "Report 3 PDF: Range status 'Total Cholesterol' (above_reported_range)",
+      "status": "PASS",
+      "details": {
+        "ground_truth": "above_reported_range",
+        "actual": "above_reported_range"
+      },
+      "timestamp": "2026-10-02T11:28:11.931727"
+    },
+    {
+      "test_name": "Report 3 PDF: Value accuracy 'Triglycerides' (195.0)",
+      "status": "PASS",
+      "details": {
+        "ground_truth": 195.0,
+        "actual": 195.0
+      },
+      "timestamp": "2026-10-02T11:28:11.931730"
+    },
+    {
+      "test_name": "Report 3 PDF: Unit accuracy 'Triglycerides' (mg/dL)",
+      "status": "PASS",
+      "details": {
+        "ground_truth": "mg/dL",
+        "actual": "mg/dL"
+      },
+      "timestamp": "2026-10-02T11:28:11.931733"
+    },
+    {
+      "test_name": "Report 3 PDF: Range status 'Triglycerides' (above_reported_range)",
+      "status": "PASS",
+      "details": {
+        "ground_truth": "above_reported_range",
+        "actual": "above_reported_range"
+      },
+      "timestamp": "2026-10-02T11:28:11.931735"
+    },
+    {
+      "test_name": "Report 3 PDF: Value accuracy 'HDL Cholesterol' (38.0)",
+      "status": "PASS",
+      "details": {
+        "ground_truth": 38.0,
+        "actual": 38.0
+      },
+      "timestamp": "2026-10-02T11:28:11.931738"
+    },
+    {
+      "test_name": "Report 3 PDF: Unit accuracy 'HDL Cholesterol' (mg/dL)",
+      "status": "PASS",
+      "details": {
+        "ground_truth": "mg/dL",
+        "actual": "mg/dL"
+      },
+      "timestamp": "2026-10-02T11:28:11.931741"
+    },
+    {
+      "test_name": "Report 3 PDF: Range status 'HDL Cholesterol' (below_reported_range)",
+      "status": "PASS",
+      "details": {
+        "ground_truth": "below_reported_range",
+        "actual": "below_reported_range"
+      },
+      "timestamp": "2026-10-02T11:28:11.931743"
+    },
+    {
+      "test_name": "Report 3 PDF: Value accuracy 'LDL Cholesterol' (168.0)",
+      "status": "PASS",
+      "details": {
+        "ground_truth": 168.0,
+        "actual": 168.0
+      },
+      "timestamp": "2026-10-02T11:28:11.931746"
+    },
+    {
+      "test_name": "Report 3 PDF: Unit accuracy 'LDL Cholesterol' (mg/dL)",
+      "status": "PASS",
+      "details": {
+        "ground_truth": "mg/dL",
+        "actual": "mg/dL"
+      },
+      "timestamp": "2026-10-02T11:28:11.931749"
+    },
+    {
+      "test_name": "Report 3 PDF: Range status 'LDL Cholesterol' (above_reported_range)",
+      "status": "PASS",
+      "details": {
+        "ground_truth": "above_reported_range",
+        "actual": "above_reported_range"
+      },
+      "timestamp": "2026-10-02T11:28:11.931751"
+    },
+    {
+      "test_name": "Report 3: Extracted All 4 Lipid Analytes",
+      "status": "PASS",
+      "details": {
+        "expected_count": 4,
+        "actual_count": 4,
+        "actual_names": [
+          "Total Cholesterol",
+          "Triglycerides",
+          "HDL Cholesterol",
+          "LDL Cholesterol"
+        ]
+      },
+      "timestamp": "2026-10-02T11:28:11.931756"
+    },
+    {
+      "test_name": "Report 4: Server-Side Rejection (HTTP 422)",
+      "status": "PASS",
+      "details": {
+        "status": 422,
+        "response": {
+          "detail": {
+            "error": "INVALID_DOCUMENT",
+            "is_valid_report": false,
+            "document_type": "non_medical_document",
+            "rejection_code": "NOT_A_LAB_REPORT",
+            "message": "We couldn't identify enough laboratory test information in this file. Please upload a PDF or image containing laboratory test results, values, units, or reference ranges.",
+            "validation_score": 4.5,
+            "threshold": 18.0
+          }
+        }
+      },
+      "timestamp": "2026-10-02T11:28:11.950945"
+    },
+    {
+      "test_name": "Report 4: Error Code is INVALID_DOCUMENT",
+      "status": "PASS",
+      "details": {
+        "detail": {
+          "error": "INVALID_DOCUMENT",
+          "is_valid_report": false,
+          "document_type": "non_medical_document",
+          "rejection_code": "NOT_A_LAB_REPORT",
+          "message": "We couldn't identify enough laboratory test information in this file. Please upload a PDF or image containing laboratory test results, values, units, or reference ranges.",
+          "validation_score": 4.5,
+          "threshold": 18.0
+        }
+      },
+      "timestamp": "2026-10-02T11:28:11.950962"
+    },
+    {
+      "test_name": "Report 4: is_valid_report is FALSE",
+      "status": "PASS",
+      "details": {
+        "detail": {
+          "error": "INVALID_DOCUMENT",
+          "is_valid_report": false,
+          "document_type": "non_medical_document",
+          "rejection_code": "NOT_A_LAB_REPORT",
+          "message": "We couldn't identify enough laboratory test information in this file. Please upload a PDF or image containing laboratory test results, values, units, or reference ranges.",
+          "validation_score": 4.5,
+          "threshold": 18.0
+        }
+      },
+      "timestamp": "2026-10-02T11:28:11.950967"
+    },
+    {
+      "test_name": "Report 4: User-Facing Safe Rejection Message",
+      "status": "PASS",
+      "details": {
+        "message": "We couldn't identify enough laboratory test information in this file. Please upload a PDF or image containing laboratory test results, values, units, or reference ranges."
+      },
+      "timestamp": "2026-10-02T11:28:11.950972"
+    },
+    {
+      "test_name": "Report 4: CRITICAL \u2014 Document NOT Saved in Analyzed Reports DB",
+      "status": "PASS",
+      "details": {
+        "db_reports_count": 27,
+        "saved_filenames": [
+          "report_1_normal_cbc.pdf",
+          "report_1_normal_cbc.png",
+          "report_2_mixed_cbc.pdf",
+          "report_3_lipid_profile.pdf",
+          "report_1_normal_cbc.pdf",
+          "report_1_normal_cbc.png",
+          "report_2_mixed_cbc.pdf",
+          "report_3_lipid_profile.pdf",
+          "report_1_normal_cbc.pdf",
+          "report_2_mixed_cbc.pdf",
+          "report_3_lipid_profile.pdf",
+          "sample_report_1_cbc_cmp.pdf",
+          "file_00000000b694820b83d24aa96894a8f8.png",
+          "Bhumika Bandhav.pdf",
+          "file_00000000b694820b83d24aa96894a8f8.png",
+          "file_00000000f51481fdb97c9a664ff2650f.png",
+          "sample_report_1_cbc_cmp.pdf",
+          "sample_1.pdf",
+          "sample_report_1_cbc_cmp.png",
+          "empty.pdf",
+          "corrupt.pdf",
+          "sample_report_1_cbc_cmp.pdf",
+          "Screenshot 2026-09-22 083758.png",
+          "sample_report_1_cbc_cmp.pdf",
+          "sample_report_1_cbc_cmp.pdf",
+          "sample_report_1_cbc_cmp.pdf",
+          "IDEA TITLE.pdf"
+        ]
+      },
+      "timestamp": "2026-10-02T11:28:11.955961"
+    },
+    {
+      "test_name": "Report 5: Low-Quality Document Rejection (HTTP 422)",
+      "status": "PASS",
+      "details": {
+        "status": 422,
+        "response": {
+          "detail": {
+            "error": "INVALID_DOCUMENT",
+            "is_valid_report": false,
+            "document_type": "non_medical_document",
+            "rejection_code": "NOT_A_LAB_REPORT",
+            "message": "We couldn't identify enough laboratory test information in this file. Please upload a PDF or image containing laboratory test results, values, units, or reference ranges.",
+            "validation_score": 0.0,
+            "threshold": 18.0
+          }
+        }
+      },
+      "timestamp": "2026-10-02T11:28:11.964386"
+    },
+    {
+      "test_name": "Security Gate: Cross-User Report Access Blocked (HTTP 403)",
+      "status": "PASS",
+      "details": {
+        "status": 403,
+        "response": "{\"detail\":\"Access denied.\"}"
+      },
+      "timestamp": "2026-10-02T11:28:12.164231"
+    }
+  ]
+}
