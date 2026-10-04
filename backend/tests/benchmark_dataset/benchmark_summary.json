@@ -1,0 +1,14 @@
+{
+  "classification_accuracy": 100.0,
+  "rejection_accuracy": 100.0,
+  "extraction_accuracy": 100.0,
+  "value_accuracy": 100.0,
+  "reference_range_accuracy": 100.0,
+  "status_classification_accuracy": 100.0,
+  "false_acceptance_rate": 0.0,
+  "false_rejection_rate": 0.0,
+  "unsupported_claim_rate": 0.0,
+  "total_test_documents": 12,
+  "valid_documents": 7,
+  "invalid_documents": 5
+}

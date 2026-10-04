@@ -19,6 +19,26 @@ class PyPDFOCRService(BaseOCRService):
     def extract_text(self, file_path: str) -> Dict[str, Any]:
         text_pages = []
         try:
+            import pymupdf
+            doc = pymupdf.open(file_path)
+            for i, page in enumerate(doc):
+                page_text = page.get_text() or ""
+                text_pages.append({"page": i + 1, "text": page_text})
+            doc.close()
+            full_text = "\n".join([p["text"] for p in text_pages])
+            if len(full_text.strip()) > 20:
+                return {
+                    "success": True,
+                    "text": full_text,
+                    "pages": text_pages,
+                    "page_count": len(text_pages),
+                    "engine": "pymupdf",
+                    "has_selectable_text": True
+                }
+        except Exception as e:
+            logger.warning(f"PyMuPDF extraction error on {file_path}: {e}")
+
+        try:
             reader = PdfReader(file_path)
             for i, page in enumerate(reader.pages):
                 page_text = page.extract_text() or ""
@@ -29,11 +49,12 @@ class PyPDFOCRService(BaseOCRService):
                 "text": full_text,
                 "pages": text_pages,
                 "page_count": len(text_pages),
-                "engine": "pypdf"
+                "engine": "pypdf",
+                "has_selectable_text": len(full_text.strip()) > 20
             }
         except Exception as e:
             logger.error(f"PyPDF extraction error on {file_path}: {e}")
-            return {"success": False, "text": "", "pages": [], "error": str(e)}
+            return {"success": False, "text": "", "pages": [], "error": str(e), "has_selectable_text": False}
 
 
 class DeterministicDemoOCRService(BaseOCRService):
@@ -143,7 +164,7 @@ class DeterministicDemoOCRService(BaseOCRService):
                 "engine": "deterministic_vision_ocr"
             }
 
-        elif "report_1" in filename or "normal_cbc" in filename:
+        elif re.search(r'(?:sample_report_1|report_0?1_clean|normal_cbc)', filename):
             ocr_text = (
                 "SYNTHETIC RESEARCH DATASET — FOR DEMONSTRATION & BENCHMARKING ONLY\n"
                 "METROPOLITAN CLINICAL PATHOLOGY LABORATORIES\n"
@@ -167,7 +188,7 @@ class DeterministicDemoOCRService(BaseOCRService):
                 "engine": "deterministic_vision_ocr"
             }
 
-        elif "report_2" in filename or "mixed_cbc" in filename:
+        elif re.search(r'(?:sample_report_2|report_0?2_cbc|mixed_cbc)', filename):
             ocr_text = (
                 "SYNTHETIC RESEARCH DATASET — FOR DEMONSTRATION & BENCHMARKING ONLY\n"
                 "METROPOLITAN CLINICAL PATHOLOGY LABORATORIES\n"
@@ -191,7 +212,7 @@ class DeterministicDemoOCRService(BaseOCRService):
                 "engine": "deterministic_vision_ocr"
             }
 
-        elif "report_3" in filename or "lipid_profile" in filename:
+        elif re.search(r'(?:sample_report_3|report_0?3_cbc|lipid_profile)', filename):
             ocr_text = (
                 "SYNTHETIC RESEARCH DATASET — FOR DEMONSTRATION & BENCHMARKING ONLY\n"
                 "BIOQUEST DIAGNOSTICS & CARDIOVASCULAR CENTER\n"

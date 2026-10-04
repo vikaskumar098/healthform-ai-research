@@ -1,17 +1,21 @@
 import os
+import re
 import uuid
 import logging
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Dict, Any, Tuple
 from fastapi import APIRouter, UploadFile, File, HTTPException, status, Depends
+from fastapi.responses import FileResponse
 from app.config import settings
 from app.database import get_reports_col
 from app.utils.security import get_current_user
 from app.schemas.report import ReportSummaryItem, ReportDetailResponse
-from app.schemas.parameter import LaboratoryParameter
+from app.schemas.parameter import LaboratoryParameter, ReferenceRange, SourceInfo
 from app.schemas.claim import ClaimItem
 from app.schemas.analysis import ReportAnalysis
-from app.services.ocr_service import OCRServiceFactory
+from app.services.ocr_service import OCRServiceFactory, PyPDFOCRService
+from app.services.image_processor import ImageProcessor, QualityRating
+from app.services.gemini_service import GeminiService
 from app.services.extraction_service import ExtractionService
 from app.services.validation_service import ValidationService
 from app.services.analysis_service import AnalysisService
@@ -23,99 +27,209 @@ from app.services.document_type_validator import DocumentTypeValidator
 logger = logging.getLogger("healthform.reports")
 router = APIRouter(prefix="/api/reports", tags=["Reports"])
 
-ALLOWED_EXTENSIONS = {".pdf", ".png", ".jpg", ".jpeg"}
+ALLOWED_EXTENSIONS = {".pdf", ".png", ".jpg", ".jpeg", ".webp"}
 ALLOWED_MIMETYPES = {
     "application/pdf",
     "image/jpeg",
     "image/jpg",
     "image/png",
+    "image/webp",
 }
 MAX_FILE_SIZE = 15 * 1024 * 1024  # 15 MB
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# Core pipeline function
+# Core multimodal processing pipeline
 # ══════════════════════════════════════════════════════════════════════════════
 
 async def process_report_pipeline(file_path: str, filename: str, user_id: str) -> dict:
-    """Executes the full HealthForm AI processing pipeline with strict validation gates.
-
-    Pipeline (enforced order — the LLM is NEVER called before all gates pass):
-      STEP 1 — OCR / text extraction
-      STEP 2 — Document type validation        ← GATE 1 (blocks non-lab docs)
-      STEP 3 — Metadata extraction
-      STEP 4 — Structured parameter extraction ← GATE 2 (blocks 0-result docs)
-      STEP 5 — Parameter validation
-      STEP 6 — Range classification
-      STEP 7 — RAG retrieval
-      STEP 8 — LLM grounded explanation        ← ONLY reached after gates pass
-      STEP 9 — Claim verification
+    """Executes the upgraded HealthForm AI multimodal processing pipeline:
+      STEP 1 — File Preprocessing & Quality Assessment (ImageProcessor / PyMuPDF)
+      STEP 2 — Document Quality Assessment Gate
+      STEP 3 — Two-Stage Document Classification (AI + Deterministic Gate 1)
+      STEP 4 — Structured Parameter Extraction (Gemini Multimodal + Native Fallback Gate 2)
+      STEP 5 — Deterministic Parameter Validation & Cleaning
+      STEP 6 — Range Analysis & Status Classification (Deterministic Backend Override)
+      STEP 7 — RAG Context Retrieval
+      STEP 8 — Grounded Medical Explanation Generation
+      STEP 9 — Claim Verification
     """
+    ext = os.path.splitext(filename)[1].lower()
+    page_images: List[Tuple[bytes, str]] = []
+    quality_info: Dict[str, Any] = {}
+    page_count = 1
+    raw_text = ""
 
-    # ── STEP 1: OCR Extraction ─────────────────────────────────────────────────
-    ocr_service = OCRServiceFactory.get_service(file_path)
-    ocr_res = ocr_service.extract_text(file_path)
-    raw_text = ocr_res.get("text", "")
+    with open(file_path, "rb") as f:
+        file_bytes = f.read()
 
-    logger.info(
-        "[Pipeline] OCR complete for '%s': engine=%s, text_length=%d, pages=%d",
-        filename,
-        ocr_res.get("engine"),
-        len(raw_text.strip()),
-        ocr_res.get("page_count", 1),
-    )
+    # ── STEP 1: Preprocessing & Quality Assessment ───────────────────────────
+    if ext == ".pdf":
+        rendered_pages = ImageProcessor.render_pdf_to_images(file_path)
+        page_count = max(1, len(rendered_pages))
+        for p in rendered_pages:
+            page_images.append((p["image_bytes"], "image/png"))
 
-    if ocr_res.get("warning"):
-        logger.warning("[Pipeline] OCR warning for '%s': %s", filename, ocr_res["warning"])
+        # Extract native text stream
+        pypdf_svc = PyPDFOCRService()
+        ocr_res = pypdf_svc.extract_text(file_path)
+        raw_text = ocr_res.get("text", "")
 
-    # ── STEP 2: Document Type Validation — GATE 1 ──────────────────────────────
-    # This gate BLOCKS the LLM from ever receiving a non-lab document.
-    # No LLM is called inside DocumentTypeValidator — it is purely deterministic.
-    validation_result = DocumentTypeValidator.validate(raw_text)
+        if rendered_pages:
+            quality_info = rendered_pages[0]["quality"]
+        else:
+            quality_info = ImageProcessor.assess_quality(None)
+    else:
+        # Image file (.png, .jpg, .jpeg, .webp)
+        proc_res = ImageProcessor.process_image(file_bytes)
+        quality_info = proc_res.get("quality", {})
+        enhanced_bytes = proc_res.get("enhanced_bytes", file_bytes)
+        page_images.append((enhanced_bytes, "image/jpeg"))
 
-    logger.info(
-        "[Pipeline] DocTypeValidation: is_valid=%s, score=%.1f/%.1f, "
-        "code=%s, doc_type=%s",
-        validation_result.is_valid_report,
-        validation_result.total_score,
-        validation_result.threshold,
-        validation_result.rejection_code,
-        validation_result.document_type,
-    )
-    logger.debug("[Pipeline] Signal breakdown: %s", validation_result.signals)
+        # Save enhanced image version for inspection/serving
+        enhanced_path = file_path + ".enhanced.jpg"
+        try:
+            with open(enhanced_path, "wb") as f:
+                f.write(enhanced_bytes)
+        except Exception as e:
+            logger.warning(f"Could not write enhanced image: {e}")
 
-    if not validation_result.is_valid_report:
+        # OCR fallback extraction
+        ocr_svc = OCRServiceFactory.get_service(file_path)
+        ocr_res = ocr_svc.extract_text(file_path)
+        raw_text = ocr_res.get("text", "")
+
+    # ── STEP 2: Document Quality Gate ────────────────────────────────────────
+    # Block genuinely unreadable files, but allow POOR quality if potentially salvageable
+    if quality_info.get("rating") == QualityRating.UNREADABLE and len(raw_text.strip()) < 15:
+        logger.warning(f"[Pipeline] Document '{filename}' is unreadable. Quality: {quality_info}")
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail={
                 "error": "INVALID_DOCUMENT",
                 "is_valid_report": False,
-                "document_type": validation_result.document_type,
-                "rejection_code": validation_result.rejection_code,
-                # Safe user-facing message — no internal detail exposed
-                "message": validation_result.user_message,
-                # Developer info (not shown to end-users by the frontend)
-                "validation_score": round(validation_result.total_score, 1),
-                "threshold": validation_result.threshold,
+                "document_type": "unreadable_document",
+                "rejection_code": "UNREADABLE_IMAGE",
+                "message": (
+                    "The uploaded document is severely blurred, shadowed, or low-resolution. "
+                    "Please upload a clearer, sharper photo or PDF of your laboratory report."
+                ),
+                "quality_score": quality_info,
             },
         )
 
-    # ── STEP 3: Metadata Extraction ────────────────────────────────────────────
+    # ── STEP 3: Document Type Classification — GATE 1 ────────────────────────
+    # Stage 1: AI multimodal classification
+    first_img_bytes = page_images[0][0] if page_images else None
+    first_img_mime = page_images[0][1] if page_images else "image/jpeg"
+    ai_classification = GeminiService.classify_document(
+        image_bytes=first_img_bytes,
+        mime_type=first_img_mime,
+        text_content=raw_text
+    )
+    doc_type = ai_classification.get("document_type", "unknown")
+    ai_conf = float(ai_classification.get("confidence", 0.5))
+
+    # Stage 2: Deterministic validation check
+    validation_result = DocumentTypeValidator.validate(raw_text)
+
+    # Reject non-medical / non-lab documents (certificates, resumes, invoices, bank statements)
+    non_lab_types = {"invoice", "certificate", "resume", "bank_statement", "identity_document", "other"}
+    if doc_type in non_lab_types and ai_conf >= 0.70 and not validation_result.is_valid_report:
+        formatted_type = doc_type.replace("_", " ")
+        logger.info(f"[Pipeline] GATE 1 BLOCKED non-lab document: {doc_type} (conf: {ai_conf})")
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "error": "INVALID_DOCUMENT",
+                "is_valid_report": False,
+                "document_type": doc_type,
+                "rejection_code": f"NOT_A_LAB_REPORT_{doc_type.upper()}",
+                "message": (
+                    f"This document doesn't appear to be a laboratory report. "
+                    f"It was identified as a {formatted_type} ({ai_classification.get('reason', '')}). "
+                    f"Please upload a medical laboratory test report."
+                ),
+                "validation_score": round(validation_result.total_score, 1),
+            },
+        )
+
+    # If both AI and deterministic validator reject with no evidence:
+    if not ai_classification.get("is_laboratory_report") and not validation_result.is_valid_report and len(raw_text.strip()) > 20:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "error": "INVALID_DOCUMENT",
+                "is_valid_report": False,
+                "document_type": doc_type,
+                "rejection_code": validation_result.rejection_code or "NOT_A_LAB_REPORT",
+                "message": validation_result.user_message,
+                "validation_score": round(validation_result.total_score, 1),
+            },
+        )
+
+    # ── STEP 4: Structured Parameter Extraction — GATE 2 ────────────────────
+    extracted_params: List[LaboratoryParameter] = []
     meta = ExtractionService.extract_metadata(raw_text)
 
-    # ── STEP 4: Structured Parameter Extraction — GATE 2 ──────────────────────
-    # Even if the document is classified as a lab report, it MUST yield at least
-    # one structured parameter with a numeric value.  Low-quality scans that
-    # contain lab keywords but unreadable values are rejected here.
-    raw_params = ExtractionService.extract_parameters(raw_text)
+    # Multimodal Gemini extraction
+    if GeminiService.is_configured() and page_images:
+        gemini_result = GeminiService.extract_structured_report(page_images, text_context=raw_text)
+        gemini_doc = gemini_result.get("document", {})
+        if gemini_doc:
+            if gemini_doc.get("patient_name") and meta.get("patient_name") == "Unknown Patient":
+                meta["patient_name"] = gemini_doc["patient_name"]
+            if gemini_doc.get("report_date") and not meta.get("report_date"):
+                meta["report_date"] = gemini_doc["report_date"]
+            if gemini_doc.get("lab_name"):
+                meta["lab_name"] = gemini_doc["lab_name"]
 
-    if not raw_params:
-        logger.warning(
-            "[Pipeline] GATE2 BLOCKED: doc classified as lab_report (score=%.1f) "
-            "but extraction returned 0 parameters for '%s'.",
-            validation_result.total_score,
-            filename,
-        )
+        for item in gemini_result.get("tests", []):
+            try:
+                name = item.get("name")
+                val_raw = item.get("value")
+                if not name or val_raw is None:
+                    continue
+                if isinstance(val_raw, (int, float)):
+                    val = float(val_raw)
+                else:
+                    m = re.search(r'[\d\.]+', str(val_raw))
+                    if not m:
+                        continue
+                    val = float(m.group(0))
+
+                unit = item.get("unit") or ""
+                ref_dict = item.get("reference_range")
+                if isinstance(ref_dict, dict):
+                    low = ref_dict.get("low")
+                    high = ref_dict.get("high")
+                    raw_ref = ref_dict.get("raw") or (f"{low} - {high}" if low is not None and high is not None else "Not stated")
+                elif isinstance(ref_dict, str):
+                    low, high, raw_ref = ExtractionService.parse_reference_range(ref_dict)
+                else:
+                    low, high, raw_ref = None, None, "Reference range not available in the uploaded report."
+
+                param = LaboratoryParameter(
+                    test_name=name,
+                    value=val,
+                    unit=unit,
+                    reference_range=ReferenceRange(raw=raw_ref, low=low, high=high),
+                    status="unknown",
+                    confidence=float(item.get("confidence", 0.95)),
+                    source=SourceInfo(page=1, text=str(item.get("evidence", f"{name} {val} {unit}")))
+                )
+                extracted_params.append(param)
+            except Exception as pe:
+                logger.warning(f"Error parsing Gemini test item: {pe}")
+
+    # Fallback/support regex extraction
+    if not extracted_params and raw_text:
+        ocr_params = ExtractionService.extract_parameters(raw_text)
+        extracted_params.extend(ocr_params)
+
+    # GATE 2: Must contain at least 1 structured laboratory test
+    if not extracted_params:
+        logger.warning(f"[Pipeline] GATE 2 BLOCKED: 0 parameters extracted for '{filename}'")
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail={
@@ -125,33 +239,32 @@ async def process_report_pipeline(file_path: str, filename: str, user_id: str) -
                 "rejection_code": "NO_STRUCTURED_VALUES_FOUND",
                 "message": (
                     "We couldn't reliably extract laboratory test results from this report. "
-                    "Please upload a clearer copy — "
-                    "ensure the image is sharp and the values are fully visible."
+                    "Please upload a clearer copy — ensure the image is sharp and the values are fully visible."
                 ),
             },
         )
 
-    # ── STEP 5: Parameter Validation ───────────────────────────────────────────
-    validated_params = ValidationService.validate_parameters(raw_params)
+    # ── STEP 5: Parameter Validation & Noise Removal ─────────────────────────
+    validated_params = ValidationService.validate_parameters(extracted_params)
 
-    # ── STEP 6: Reference Range Classification ─────────────────────────────────
+    # ── STEP 6: Deterministic Reference Range Classification ────────────────
+    # CRITICAL REQUIREMENT: Backend deterministic calculation is the single source of truth!
     final_params = [AnalysisService.classify_parameter_status(p) for p in validated_params]
 
-    # ── STEP 7: RAG Retrieval ──────────────────────────────────────────────────
+    # ── STEP 7: RAG Retrieval ────────────────────────────────────────────────
     test_queries = " ".join([p.test_name for p in final_params[:5]])
     evidence_chunks = rag_service.retrieve(test_queries, top_k=3)
 
-    # ── STEP 8: LLM Grounded Explanation ─────────────────────────────────────
-    # Only reachable after GATE 1 and GATE 2 have passed.
-    analysis = LLMService.generate_explanation(final_params, evidence_chunks, meta)
+    # ── STEP 8: LLM Grounded Explanation ───────────────────────────────────
+    analysis = GeminiService.generate_grounded_explanation(final_params, evidence_chunks, meta)
 
-    # ── STEP 9: Claim Verification ─────────────────────────────────────────────
+    # ── STEP 9: Claim Verification ───────────────────────────────────────────
     verified_claims = ClaimVerificationEngine.verify_claims(
         analysis.claims, final_params, evidence_chunks
     )
     analysis.claims = verified_claims
 
-    # ── Summary counters ───────────────────────────────────────────────────────
+    # ── Summary counters ─────────────────────────────────────────────────────
     below_c   = sum(1 for p in final_params if p.status == "below_reported_range")
     above_c   = sum(1 for p in final_params if p.status == "above_reported_range")
     within_c  = sum(1 for p in final_params if p.status == "within_reported_range")
@@ -179,11 +292,14 @@ async def process_report_pipeline(file_path: str, filename: str, user_id: str) -
             "unknown": unknown_c,
         },
         "metadata": meta,
-        # Stored for audit trail
+        "document_type": doc_type if doc_type != "unknown" else "laboratory_report",
+        "quality_score": quality_info,
+        "page_count": page_count,
         "document_validation": {
             "is_valid_report": True,
-            "document_type": validation_result.document_type,
-            "confidence": validation_result.confidence,
+            "document_type": doc_type,
+            "confidence": ai_conf,
+            "quality_rating": quality_info.get("rating", "ACCEPTABLE"),
             "score": round(validation_result.total_score, 2),
             "signals": validation_result.signals,
         },
@@ -210,7 +326,67 @@ def _make_response(doc: dict) -> ReportDetailResponse:
         parameters=[LaboratoryParameter(**p) for p in doc.get("parameters", [])],
         analysis=ReportAnalysis(**doc["analysis"]) if doc.get("analysis") else None,
         metadata=doc.get("metadata", {}),
+        document_type=doc.get("document_type", "laboratory_report"),
+        quality_score=doc.get("quality_score"),
+        page_count=doc.get("page_count", 1),
     )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Validate endpoint (Pre-upload document verification without database insert)
+# ══════════════════════════════════════════════════════════════════════════════
+
+@router.post("/validate")
+async def pre_validate_document(
+    file: UploadFile = File(...),
+    current_user: dict = Depends(get_current_user),
+):
+    """Pre-validates a document before full analysis.
+    Returns quality score, document classification, and validation status.
+    """
+    ext = os.path.splitext(file.filename or "")[1].lower()
+    if ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unsupported file type '{ext}'. Please upload a PDF or image.",
+        )
+
+    file_bytes = await file.read()
+    if len(file_bytes) == 0:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="File is empty.")
+
+    if ext == ".pdf":
+        temp_pdf = f"uploads/temp_{uuid.uuid4()}.pdf"
+        os.makedirs("uploads", exist_ok=True)
+        with open(temp_pdf, "wb") as f:
+            f.write(file_bytes)
+        try:
+            rendered = ImageProcessor.render_pdf_to_images(temp_pdf)
+            quality_info = rendered[0]["quality"] if rendered else ImageProcessor.assess_quality(None)
+            ocr_res = PyPDFOCRService().extract_text(temp_pdf)
+            text = ocr_res.get("text", "")
+            img_part = rendered[0]["image_bytes"] if rendered else None
+        finally:
+            if os.path.exists(temp_pdf):
+                os.remove(temp_pdf)
+    else:
+        proc = ImageProcessor.process_image(file_bytes)
+        quality_info = proc.get("quality", {})
+        img_part = proc.get("enhanced_bytes", file_bytes)
+        text = ""
+
+    ai_class = GeminiService.classify_document(image_bytes=img_part, text_content=text)
+    det_val = DocumentTypeValidator.validate(text)
+
+    is_valid = ai_class.get("is_laboratory_report", False) or det_val.is_valid_report
+    return {
+        "filename": file.filename,
+        "is_valid_report": is_valid,
+        "document_type": ai_class.get("document_type", det_val.document_type),
+        "quality": quality_info,
+        "ai_confidence": ai_class.get("confidence", 0.5),
+        "message": "Valid laboratory report." if is_valid else (det_val.user_message or ai_class.get("reason", "Not a lab report."))
+    }
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -385,6 +561,27 @@ async def get_report(report_id: str, current_user: dict = Depends(get_current_us
     return _make_response(doc)
 
 
+@router.get("/{report_id}/file")
+async def get_report_file(report_id: str, current_user: dict = Depends(get_current_user)):
+    """Serves the actual uploaded PDF or image file for authenticated user view/download."""
+    user_id = str(current_user.get("_id") or current_user.get("id"))
+    reports_col = get_reports_col()
+    doc = await reports_col.find_one({"_id": report_id})
+    if not doc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Report not found.")
+    if str(doc.get("user_id")) != user_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied.")
+
+    file_path = doc.get("file_path")
+    if not file_path or not os.path.exists(file_path):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Original document file not found on disk.")
+
+    filename = doc.get("filename", "report.pdf")
+    ext = os.path.splitext(filename)[1].lower()
+    media_type = "application/pdf" if ext == ".pdf" else f"image/{ext.replace('.', '')}"
+    return FileResponse(file_path, media_type=media_type, filename=filename)
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 # Delete report
 # ══════════════════════════════════════════════════════════════════════════════
@@ -466,3 +663,23 @@ async def get_report_claims(report_id: str, current_user: dict = Depends(get_cur
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied.")
     analysis = doc.get("analysis", {})
     return [ClaimItem(**c) for c in analysis.get("claims", [])]
+
+
+@router.get("/{report_id}/comparison")
+async def get_report_comparison(report_id: str, current_user: dict = Depends(get_current_user)):
+    """Historical comparison endpoint for a specific report against user's prior reports."""
+    user_id = str(current_user.get("_id") or current_user.get("id"))
+    reports_col = get_reports_col()
+    target_doc = await reports_col.find_one({"_id": report_id})
+    if not target_doc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Report not found.")
+
+    all_docs = await reports_col.find({"user_id": user_id}).to_list(10)
+    if len(all_docs) < 2:
+        return {
+            "report_ids": [report_id],
+            "patient_name": target_doc.get("patient_name", "Subject"),
+            "parameters": [],
+            "neutral_observation": "At least two reports are required to perform historical comparison."
+        }
+    return AnalysisService.compare_historical_reports(all_docs)

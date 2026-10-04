@@ -16,6 +16,7 @@ class LaboratoryParameter(BaseModel):
     unit: str
     reference_range: ReferenceRange
     status: str = Field(..., description="within_reported_range, below_reported_range, above_reported_range, unknown")
+    display_status: Optional[str] = Field("Normal", description="Human readable: Normal, Below Range, Above Range, No Reference Range")
     flag: Optional[str] = None
     confidence: float = 0.95
     validation_status: str = "valid"  # "valid", "warning", "invalid"

@@ -30,3 +30,6 @@ class ReportDetailResponse(BaseModel):
     parameters: List[LaboratoryParameter] = []
     analysis: Optional[ReportAnalysis] = None
     metadata: Dict[str, Any] = {}
+    document_type: Optional[str] = "laboratory_report"
+    quality_score: Optional[Dict[str, Any]] = None
+    page_count: int = 1

@@ -17,6 +17,8 @@ class AnalysisService:
 
         if ref.low is None and ref.high is None:
             param.status = "unknown"
+            param.display_status = "No Reference Range"
+            param.flag = None
             if not ref.raw or "not available" in ref.raw.lower():
                 ref.raw = "Reference range not available in the uploaded report."
             return param
@@ -24,20 +26,34 @@ class AnalysisService:
         if ref.low is not None and ref.high is not None:
             if val < ref.low:
                 param.status = "below_reported_range"
+                param.display_status = "Below Range"
+                param.flag = "LOW"
             elif val > ref.high:
                 param.status = "above_reported_range"
+                param.display_status = "Above Range"
+                param.flag = "HIGH"
             else:
                 param.status = "within_reported_range"
+                param.display_status = "Normal"
+                param.flag = "NORMAL"
         elif ref.high is not None:
             if val > ref.high:
                 param.status = "above_reported_range"
+                param.display_status = "Above Range"
+                param.flag = "HIGH"
             else:
                 param.status = "within_reported_range"
+                param.display_status = "Normal"
+                param.flag = "NORMAL"
         elif ref.low is not None:
             if val < ref.low:
                 param.status = "below_reported_range"
+                param.display_status = "Below Range"
+                param.flag = "LOW"
             else:
                 param.status = "within_reported_range"
+                param.display_status = "Normal"
+                param.flag = "NORMAL"
 
         return param
 

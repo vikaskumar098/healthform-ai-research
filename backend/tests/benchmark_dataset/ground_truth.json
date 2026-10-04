@@ -1,0 +1,270 @@
+{
+  "report_01_clean_normal_cbc.pdf": {
+    "is_valid_report": true,
+    "document_type": "laboratory_report",
+    "parameters": {
+      "Hemoglobin": {
+        "value": 14.6,
+        "unit": "g/dL",
+        "low": 13.0,
+        "high": 17.0,
+        "expected_status": "within_reported_range",
+        "expected_display": "Normal"
+      },
+      "Hematocrit": {
+        "value": 42.0,
+        "unit": "%",
+        "low": 37.0,
+        "high": 48.0,
+        "expected_status": "within_reported_range",
+        "expected_display": "Normal"
+      },
+      "WBC Count": {
+        "value": 7.5,
+        "unit": "10^3/uL",
+        "low": 4.0,
+        "high": 11.0,
+        "expected_status": "within_reported_range",
+        "expected_display": "Normal"
+      },
+      "Platelets": {
+        "value": 250.0,
+        "unit": "10^3/uL",
+        "low": 150.0,
+        "high": 450.0,
+        "expected_status": "within_reported_range",
+        "expected_display": "Normal"
+      },
+      "MCV": {
+        "value": 88.0,
+        "unit": "fL",
+        "low": 80.0,
+        "high": 100.0,
+        "expected_status": "within_reported_range",
+        "expected_display": "Normal"
+      }
+    }
+  },
+  "report_02_cbc_low_values.pdf": {
+    "is_valid_report": true,
+    "document_type": "laboratory_report",
+    "parameters": {
+      "Hemoglobin": {
+        "value": 11.2,
+        "unit": "g/dL",
+        "low": 13.0,
+        "high": 17.0,
+        "expected_status": "below_reported_range",
+        "expected_display": "Below Range"
+      },
+      "Hematocrit": {
+        "value": 34.0,
+        "unit": "%",
+        "low": 39.0,
+        "high": 50.0,
+        "expected_status": "below_reported_range",
+        "expected_display": "Below Range"
+      },
+      "WBC Count": {
+        "value": 7.0,
+        "unit": "10^3/uL",
+        "low": 4.5,
+        "high": 11.0,
+        "expected_status": "within_reported_range",
+        "expected_display": "Normal"
+      },
+      "Platelets": {
+        "value": 125.0,
+        "unit": "10^3/uL",
+        "low": 150.0,
+        "high": 450.0,
+        "expected_status": "below_reported_range",
+        "expected_display": "Below Range"
+      }
+    }
+  },
+  "report_03_cbc_high_values.pdf": {
+    "is_valid_report": true,
+    "document_type": "laboratory_report",
+    "parameters": {
+      "Hemoglobin": {
+        "value": 18.2,
+        "unit": "g/dL",
+        "low": 13.0,
+        "high": 17.0,
+        "expected_status": "above_reported_range",
+        "expected_display": "Above Range"
+      },
+      "WBC Count": {
+        "value": 14.8,
+        "unit": "10^3/uL",
+        "low": 4.0,
+        "high": 11.0,
+        "expected_status": "above_reported_range",
+        "expected_display": "Above Range"
+      },
+      "Fasting Glucose": {
+        "value": 138.0,
+        "unit": "mg/dL",
+        "low": 70.0,
+        "high": 99.0,
+        "expected_status": "above_reported_range",
+        "expected_display": "Above Range"
+      },
+      "Platelets": {
+        "value": 280.0,
+        "unit": "10^3/uL",
+        "low": 150.0,
+        "high": 450.0,
+        "expected_status": "within_reported_range",
+        "expected_display": "Normal"
+      }
+    }
+  },
+  "report_04_mixed_normal_low_high.pdf": {
+    "is_valid_report": true,
+    "document_type": "laboratory_report",
+    "parameters": {
+      "Hemoglobin": {
+        "value": 10.8,
+        "unit": "g/dL",
+        "low": 12.0,
+        "high": 16.0,
+        "expected_status": "below_reported_range",
+        "expected_display": "Below Range"
+      },
+      "Fasting Glucose": {
+        "value": 124.0,
+        "unit": "mg/dL",
+        "low": 70.0,
+        "high": 99.0,
+        "expected_status": "above_reported_range",
+        "expected_display": "Above Range"
+      },
+      "Serum Creatinine": {
+        "value": 0.9,
+        "unit": "mg/dL",
+        "low": 0.6,
+        "high": 1.2,
+        "expected_status": "within_reported_range",
+        "expected_display": "Normal"
+      },
+      "Potassium": {
+        "value": 4.2,
+        "unit": "mEq/L",
+        "low": 3.5,
+        "high": 5.0,
+        "expected_status": "within_reported_range",
+        "expected_display": "Normal"
+      },
+      "Total Cholesterol": {
+        "value": 225.0,
+        "unit": "mg/dL",
+        "low": null,
+        "high": 200.0,
+        "expected_status": "above_reported_range",
+        "expected_display": "Above Range"
+      }
+    }
+  },
+  "report_05_blurry_photo.png": {
+    "is_valid_report": true,
+    "document_type": "laboratory_report",
+    "parameters": {
+      "Hemoglobin": {
+        "value": 11.2,
+        "unit": "g/dL",
+        "low": 13.0,
+        "high": 17.0,
+        "expected_status": "below_reported_range",
+        "expected_display": "Below Range"
+      },
+      "WBC Count": {
+        "value": 7.8,
+        "unit": "10^3/uL",
+        "low": 4.5,
+        "high": 11.0,
+        "expected_status": "within_reported_range",
+        "expected_display": "Normal"
+      }
+    }
+  },
+  "report_06_blue_shadow_photo.png": {
+    "is_valid_report": true,
+    "document_type": "laboratory_report",
+    "parameters": {
+      "Hemoglobin": {
+        "value": 14.2,
+        "unit": "g/dL",
+        "low": 13.0,
+        "high": 17.0,
+        "expected_status": "within_reported_range",
+        "expected_display": "Normal"
+      },
+      "Fasting Glucose": {
+        "value": 118.0,
+        "unit": "mg/dL",
+        "low": 70.0,
+        "high": 99.0,
+        "expected_status": "above_reported_range",
+        "expected_display": "Above Range"
+      }
+    }
+  },
+  "report_07_multipage_report.pdf": {
+    "is_valid_report": true,
+    "document_type": "laboratory_report",
+    "page_count": 2,
+    "parameters": {
+      "Hemoglobin": {
+        "value": 14.0,
+        "unit": "g/dL",
+        "low": 13.0,
+        "high": 17.0,
+        "expected_status": "within_reported_range",
+        "expected_display": "Normal"
+      },
+      "Fasting Glucose": {
+        "value": 92.0,
+        "unit": "mg/dL",
+        "low": 70.0,
+        "high": 99.0,
+        "expected_status": "within_reported_range",
+        "expected_display": "Normal"
+      },
+      "ALT (Alanine Aminotransferase)": {
+        "value": 65.0,
+        "unit": "U/L",
+        "low": 7.0,
+        "high": 56.0,
+        "expected_status": "above_reported_range",
+        "expected_display": "Above Range"
+      }
+    }
+  },
+  "report_08_invalid_certificate.pdf": {
+    "is_valid_report": false,
+    "document_type": "certificate",
+    "rejection_code": "NOT_A_LAB_REPORT"
+  },
+  "report_09_invalid_resume.pdf": {
+    "is_valid_report": false,
+    "document_type": "resume",
+    "rejection_code": "NOT_A_LAB_REPORT"
+  },
+  "report_10_random_image.png": {
+    "is_valid_report": false,
+    "document_type": "other",
+    "rejection_code": "NOT_A_LAB_REPORT"
+  },
+  "report_11_blank.pdf": {
+    "is_valid_report": false,
+    "document_type": "unknown",
+    "rejection_code": "EMPTY_DOCUMENT"
+  },
+  "report_12_unreadable_noise.png": {
+    "is_valid_report": false,
+    "document_type": "unreadable_document",
+    "rejection_code": "UNREADABLE_IMAGE"
+  }
+}

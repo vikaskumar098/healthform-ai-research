@@ -74,17 +74,20 @@ class LLMService:
         within = [p for p in parameters if p.status == "within_reported_range"]
         unknown = [p for p in parameters if p.status == "unknown"]
 
-        summary = (
-            f"Laboratory analysis parsed {total} parameters from the uploaded document. "
-            f"Based strictly on the reference intervals printed by the executing laboratory: "
-            f"{len(within)} parameter(s) are within stated limits, "
-            f"{len(below)} parameter(s) fall below reported ranges, "
-            f"{len(above)} parameter(s) fall above reported ranges"
-            + (f", and {len(unknown)} parameter(s) have unstated reference bounds." if unknown else ".")
-        )
+        need_attention = len(below) + len(above)
+        if total == 0:
+            summary = "No laboratory test results were extracted from this document."
+        elif need_attention == 0:
+            summary = f"All {total} analyzed test results are within the laboratory's stated reference ranges."
+        else:
+            summary = (
+                f"We analyzed {total} test results from your report. "
+                f"{len(within)} results are within stated limits, and "
+                f"{need_attention} result{'s are' if need_attention != 1 else ' is'} outside the laboratory's stated reference ranges."
+            )
 
         findings_paragraphs = []
-        findings_paragraphs.append("### Stated Laboratory Findings\n")
+        findings_paragraphs.append("Key Findings\n")
 
         claims: List[ClaimItem] = []
 
@@ -92,7 +95,7 @@ class LLMService:
         for p in below:
             ref_str = p.reference_range.raw
             findings_paragraphs.append(
-                f"- **{p.test_name}**: Measured at **{p.value} {p.unit}**, which is below the laboratory's printed reference range ({ref_str})."
+                f"- {p.test_name}: {p.value} {p.unit} (Reference: {ref_str}) - Below Range. Your reported value is below the reference range provided by the laboratory."
             )
             claims.append(ClaimItem(
                 claim=f"The {p.test_name} result ({p.value} {p.unit}) is below the laboratory's stated reference range ({ref_str}).",
@@ -107,7 +110,7 @@ class LLMService:
         for p in above:
             ref_str = p.reference_range.raw
             findings_paragraphs.append(
-                f"- **{p.test_name}**: Measured at **{p.value} {p.unit}**, which is above the laboratory's printed reference range ({ref_str})."
+                f"- {p.test_name}: {p.value} {p.unit} (Reference: {ref_str}) - Above Range. Your reported value is above the reference range provided by the laboratory."
             )
             claims.append(ClaimItem(
                 claim=f"The {p.test_name} result ({p.value} {p.unit}) is above the laboratory's stated reference range ({ref_str}).",
@@ -122,7 +125,7 @@ class LLMService:
         if within:
             normal_names = ", ".join([p.test_name for p in within[:5]])
             findings_paragraphs.append(
-                f"- **Within Range**: Parameters including {normal_names} were measured within their respective reported intervals."
+                f"- Within Range: {len(within)} tests including {normal_names} were within stated laboratory limits."
             )
             claims.append(ClaimItem(
                 claim=f"A total of {len(within)} parameters were measured within the laboratory's printed reference intervals.",
@@ -133,30 +136,28 @@ class LLMService:
                 reasoning="Reproducible mathematical calculation from verified parameter values."
             ))
 
-        # Context from RAG evidence
-        findings_paragraphs.append("\n### Relevant Physiological Context (From Curated Medical References)\n")
+        # Physiological Context without raw filenames
         if evidence_chunks:
+            findings_paragraphs.append("\nWhat This Means\n")
             for ev in evidence_chunks[:2]:
                 findings_paragraphs.append(
-                    f"- **{ev.title} ({ev.section})**: {ev.content[:200]}... [Source: {ev.source}]"
+                    f"- {ev.title} ({ev.section}): {ev.content[:200]}..."
                 )
                 claims.append(ClaimItem(
                     claim=f"In physiological reference literature ({ev.section}), {ev.title} guidelines note that parameters vary according to individual physiology and laboratory assay instruments.",
                     claim_type=ClaimType.REFERENCE_CONTEXT.value,
-                    supporting_evidence=[f"{ev.source} - {ev.section}"],
+                    supporting_evidence=[f"{ev.title} - {ev.section}"],
                     verification_status=VerificationStatus.SUPPORTED.value,
                     confidence=0.95,
                     reasoning="Retrieved and verified from curated reference knowledge base."
                 ))
-        else:
-            findings_paragraphs.append("- Relevant reference information was not found in the local knowledge base.")
 
-        # Safety & Non-Diagnostic Qualified Interpretation
-        findings_paragraphs.append("\n### Safe Clinical Interpretation Principles\n")
+        # Important Note
+        findings_paragraphs.append("\nImportant Note\n")
         findings_paragraphs.append(
             "Values that deviate from reference intervals represent isolated analytical measurements. "
             "A numerical deviation alone does not establish a diagnosis, etiology, or therapeutic necessity. "
-            "Proper clinical correlation by a licensed healthcare professional is indispensable."
+            "Please review these results with your healthcare provider."
         )
 
         claims.append(ClaimItem(

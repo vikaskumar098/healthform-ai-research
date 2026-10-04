@@ -3,7 +3,7 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     APP_NAME: str = "HealthForm AI"
-    APP_VERSION: str = "1.0.0"
+    APP_VERSION: str = "2.0.0"
     DEBUG: bool = True
     
     # MongoDB
@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     # AI / Provider Settings
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
+    GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-flash-latest")
     
     # Demo Mode: if API keys are absent, default to deterministic research mock engine
     DEMO_MODE: bool = os.getenv("DEMO_MODE", "true").lower() in ("true", "1", "yes")
@@ -34,6 +35,10 @@ class Settings(BaseSettings):
 
 settings = Settings()
 
-# Automatically enable demo mode if no AI API key is configured
-if not settings.OPENAI_API_KEY and not settings.GEMINI_API_KEY:
+# Automatically manage demo mode based on API key availability
+# If Gemini key is present, force production mode regardless of .env DEMO_MODE
+if settings.GEMINI_API_KEY:
+    settings.DEMO_MODE = False
+elif not settings.OPENAI_API_KEY:
     settings.DEMO_MODE = True
+

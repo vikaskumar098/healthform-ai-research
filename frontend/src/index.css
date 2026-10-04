@@ -61,45 +61,433 @@
 ::-webkit-scrollbar-thumb:hover { background: #475569; }
 
 /* ====================================================
-   ANIMATIONS
+   CORE CINEMATIC ANIMATIONS
    ==================================================== */
+
+/* Fade in up — used for scroll reveals */
 @keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(16px); }
+  from { opacity: 0; transform: translateY(24px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
+/* Fade in down — used for hero badge */
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateY(-16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Fade in — simple opacity reveal */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* Scale in — for cards and badges popping in */
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.92); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+/* Slide in from left */
+@keyframes slideInLeft {
+  from { opacity: 0; transform: translateX(-32px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+/* Slide in from right */
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(32px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+/* Pulse glow — for AI processing, active badges */
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(34, 211, 238, 0); }
+  50%       { box-shadow: 0 0 20px 4px rgba(34, 211, 238, 0.25); }
+}
+
+/* Pulse slow — for indicators */
 @keyframes pulse-slow {
   0%, 100% { opacity: 1; }
   50%       { opacity: 0.5; }
 }
 
+/* Shimmer — for loading states and progress */
 @keyframes shimmer {
   0%   { background-position: -200% 0; }
   100% { background-position:  200% 0; }
 }
 
-.animate-fade-in-up {
-  animation: fadeInUp 0.5s cubic-bezier(0.4, 0, 0.2, 1) both;
+/* Float — gentle hovering motion for decorative elements */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-10px); }
 }
 
-.animate-fade-in-up-delay-1 { animation-delay: 0.1s; }
-.animate-fade-in-up-delay-2 { animation-delay: 0.2s; }
-.animate-fade-in-up-delay-3 { animation-delay: 0.3s; }
+/* Float subtle — very gentle bob for cards */
+@keyframes float-subtle {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  33%       { transform: translateY(-6px) rotate(0.5deg); }
+  66%       { transform: translateY(-3px) rotate(-0.3deg); }
+}
+
+/* Scan beam — document scanning effect */
+@keyframes scan-beam {
+  0%   { top: 0%; opacity: 0; }
+  15%  { opacity: 1; }
+  85%  { opacity: 1; }
+  100% { top: 96%; opacity: 0; }
+}
+
+/* Particle drift — for ambient particles */
+@keyframes particle-drift {
+  0%   { transform: translateY(100vh) translateX(0) scale(0); opacity: 0; }
+  10%  { opacity: 1; }
+  90%  { opacity: 0.6; }
+  100% { transform: translateY(-20px) translateX(var(--drift-x, 20px)) scale(1); opacity: 0; }
+}
+
+/* Waveform — AI waveform pulse */
+@keyframes waveform {
+  0%, 100% { scaleY: 0.3; }
+  50%       { scaleY: 1; }
+}
+
+/* Data stream — flowing data line */
+@keyframes data-stream {
+  0%   { stroke-dashoffset: 1000; opacity: 0; }
+  15%  { opacity: 0.8; }
+  85%  { opacity: 0.8; }
+  100% { stroke-dashoffset: 0; opacity: 0; }
+}
+
+/* Orbital — rotating around center */
+@keyframes orbital {
+  from { transform: rotate(0deg) translateX(80px) rotate(0deg); }
+  to   { transform: rotate(360deg) translateX(80px) rotate(-360deg); }
+}
+
+/* Gradient shift — for animated gradients */
+@keyframes gradient-shift {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Spin slow */
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* Counter — stat counter number pop */
+@keyframes count-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Border glow pulse — for highlighted cards */
+@keyframes border-glow-pulse {
+  0%, 100% { border-color: rgba(34, 211, 238, 0.2); }
+  50%       { border-color: rgba(34, 211, 238, 0.6); }
+}
+
+/* ====================================================
+   ANIMATION UTILITY CLASSES
+   ==================================================== */
+
+/* Core scroll reveal — applied via JS */
+.reveal-hidden {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.reveal-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.reveal-scale-hidden {
+  opacity: 0;
+  transform: scale(0.92);
+  transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.reveal-scale-visible {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.reveal-left-hidden {
+  opacity: 0;
+  transform: translateX(-32px);
+  transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.reveal-left-visible {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.reveal-right-hidden {
+  opacity: 0;
+  transform: translateX(32px);
+  transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.reveal-right-visible {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+/* Simple animation utilities */
+.animate-fade-in-up {
+  animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.5s ease both;
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.animate-slide-left {
+  animation: slideInLeft 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-slide-right {
+  animation: slideInRight 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-float {
+  animation: float 4s ease-in-out infinite;
+}
+
+.animate-float-subtle {
+  animation: float-subtle 6s ease-in-out infinite;
+}
 
 .animate-pulse-slow {
   animation: pulse-slow 2.5s ease-in-out infinite;
 }
 
-/* Status pill colours */
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+.animate-spin-slow {
+  animation: spin-slow 12s linear infinite;
+}
+
+.animate-gradient-shift {
+  background-size: 200% 200%;
+  animation: gradient-shift 6s ease infinite;
+}
+
+.animate-scan-beam {
+  animation: scan-beam 2.8s ease-in-out infinite;
+}
+
+.animate-border-glow {
+  animation: border-glow-pulse 2s ease-in-out infinite;
+}
+
+/* Stagger delay utilities */
+.animate-delay-0   { animation-delay: 0ms; }
+.animate-delay-50  { animation-delay: 50ms; }
+.animate-delay-100 { animation-delay: 100ms; }
+.animate-delay-150 { animation-delay: 150ms; }
+.animate-delay-200 { animation-delay: 200ms; }
+.animate-delay-250 { animation-delay: 250ms; }
+.animate-delay-300 { animation-delay: 300ms; }
+.animate-delay-400 { animation-delay: 400ms; }
+.animate-delay-500 { animation-delay: 500ms; }
+.animate-delay-600 { animation-delay: 600ms; }
+.animate-delay-700 { animation-delay: 700ms; }
+.animate-delay-800 { animation-delay: 800ms; }
+
+/* Legacy compat */
+.animate-fade-in-up-delay-1 { animation-delay: 0.1s; }
+.animate-fade-in-up-delay-2 { animation-delay: 0.2s; }
+.animate-fade-in-up-delay-3 { animation-delay: 0.3s; }
+
+/* ====================================================
+   3D DEPTH CARD HOVER SYSTEM
+   ==================================================== */
+.card-3d {
+  transform-style: preserve-3d;
+  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1),
+              box-shadow 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform;
+}
+
+.card-3d:hover {
+  transform: translateY(-6px) scale(1.01);
+  box-shadow: 0 24px 48px -12px rgba(12, 143, 233, 0.18),
+              0 8px 16px -4px rgba(0, 0, 0, 0.4);
+}
+
+.card-3d-strong:hover {
+  transform: translateY(-10px) scale(1.015) rotateX(2deg);
+  box-shadow: 0 32px 64px -16px rgba(12, 143, 233, 0.25),
+              0 16px 32px -8px rgba(0, 0, 0, 0.5);
+}
+
+/* ====================================================
+   PREMIUM BUTTON EFFECTS
+   ==================================================== */
+.btn-glow {
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-glow::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, transparent 60%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.btn-glow:hover::after {
+  opacity: 1;
+}
+
+.btn-glow:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px -4px rgba(12, 143, 233, 0.4);
+}
+
+.btn-glow:active {
+  transform: translateY(0) scale(0.99);
+}
+
+/* ====================================================
+   WAVEFORM BARS
+   ==================================================== */
+.waveform-bar {
+  display: inline-block;
+  width: 3px;
+  border-radius: 2px;
+  background: currentColor;
+  animation: waveform-bar 1.2s ease-in-out infinite;
+  transform-origin: bottom;
+}
+
+@keyframes waveform-bar {
+  0%, 100% { transform: scaleY(0.3); opacity: 0.5; }
+  50%       { transform: scaleY(1);   opacity: 1; }
+}
+
+.waveform-bar:nth-child(1) { animation-delay: 0ms; }
+.waveform-bar:nth-child(2) { animation-delay: 100ms; }
+.waveform-bar:nth-child(3) { animation-delay: 200ms; }
+.waveform-bar:nth-child(4) { animation-delay: 300ms; }
+.waveform-bar:nth-child(5) { animation-delay: 400ms; }
+.waveform-bar:nth-child(6) { animation-delay: 150ms; }
+.waveform-bar:nth-child(7) { animation-delay: 50ms; }
+.waveform-bar:nth-child(8) { animation-delay: 250ms; }
+
+/* ====================================================
+   AMBIENT PARTICLES
+   ==================================================== */
+.particle {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  animation: particle-drift var(--duration, 8s) linear infinite;
+  animation-delay: var(--delay, 0s);
+}
+
+/* ====================================================
+   SCANNING EFFECT
+   ==================================================== */
+.scan-line {
+  position: absolute;
+  left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(34, 211, 238, 0.8), transparent);
+  box-shadow: 0 0 12px 2px rgba(34, 211, 238, 0.4);
+  animation: scan-beam 2.8s ease-in-out infinite;
+}
+
+/* ====================================================
+   HOLOGRAPHIC SHEEN (light sweep on hover)
+   ==================================================== */
+.holo-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.holo-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 20%,
+    rgba(255, 255, 255, 0.04) 40%,
+    rgba(255, 255, 255, 0.06) 50%,
+    rgba(255, 255, 255, 0.04) 60%,
+    transparent 80%
+  );
+  transform: translateX(-100%);
+  transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: none;
+}
+
+.holo-card:hover::before {
+  transform: translateX(100%);
+}
+
+/* ====================================================
+   STATUS PILL COLOURS
+   ==================================================== */
 .status-normal  { @apply bg-emerald-500/15 text-emerald-400 border border-emerald-500/30; }
 .status-low     { @apply bg-blue-500/15   text-blue-400   border border-blue-500/30;   }
 .status-high    { @apply bg-amber-500/15  text-amber-400  border border-amber-500/30;  }
 .status-unknown { @apply bg-slate-700/50  text-slate-400  border border-slate-700;     }
 
-/* Progress bar fill */
+/* ====================================================
+   PROGRESS BAR
+   ==================================================== */
 .progress-fill {
   background: linear-gradient(90deg, #0c8fe9, #6366f1, #10b981);
   background-size: 200% 100%;
   animation: shimmer 2s linear infinite;
   transition: width 0.5s ease-out;
+}
+
+/* ====================================================
+   PAGE TRANSITION
+   ==================================================== */
+.page-enter {
+  animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* ====================================================
+   REDUCED MOTION OVERRIDES
+   ==================================================== */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .reveal-hidden {
+    opacity: 1;
+    transform: none;
+  }
 }

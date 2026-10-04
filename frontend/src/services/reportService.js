@@ -41,5 +41,10 @@ export const reportService = {
   compareReports: async (reportIds) => {
     const res = await api.post('/api/comparison', { report_ids: reportIds });
     return res.data;
+  },
+
+  getReportFileBlob: async (reportId) => {
+    const res = await api.get(`/api/reports/${reportId}/file`, { responseType: 'blob' });
+    return res.data;
   }
 };

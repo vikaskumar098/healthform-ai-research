@@ -41,45 +41,52 @@ class ExtractionService:
     @staticmethod
     def parse_reference_range(range_str: str) -> Tuple[Optional[float], Optional[float], str]:
         """
-        Parses range strings like:
-        '13.0 - 17.0' -> (13.0, 17.0)
-        '70 - 99'     -> (70.0, 99.0)
-        '< 200'       -> (None, 200.0)
-        '> 50'        -> (50.0, None)
-        '<= 150'      -> (None, 150.0)
-        '>= 40'       -> (40.0, None)
-        '4,000 - 11,000' -> (4000.0, 11000.0)
+        Parses range strings into numeric bounds (low, high, raw_text).
+        Supports:
+          '13.0 - 17.0', '13–17', '13—17', '13 to 17', '13 ~ 17'
+          '< 200', '<= 200', '<200', 'less than 200'
+          '> 50', '>= 50', '>50', 'greater than 50', '13+'
+          '4,000 - 11,000'
+          '5–10', '0.35 - 4.5'
         """
         raw = range_str.strip()
-        if not raw or "not available" in raw.lower() or raw.lower() == "none":
+        if not raw or "not available" in raw.lower() or raw.lower() in ("none", "null", "n/a", "-"):
             return None, None, "Reference range not available in the uploaded report."
 
         # Remove thousands-separator commas e.g. "4,000 - 11,000" -> "4000 - 11000"
         clean_raw = re.sub(r'(?<=\d),(?=\d)', '', raw)
 
-        # Match '< 200' or '<= 200'
-        m_lt = re.search(r'(?:<|<=|less than)\s*([\d\.]+)', clean_raw, re.IGNORECASE)
-        if m_lt and not re.search(r'[\d\.]+\s*-\s*[\d\.]+', clean_raw):
-            try:
-                return None, float(m_lt.group(1)), raw
-            except ValueError:
-                pass
-
-        # Match '> 50' or '>= 50'
-        m_gt = re.search(r'(?:>|>=|greater than)\s*([\d\.]+)', clean_raw, re.IGNORECASE)
-        if m_gt and not re.search(r'[\d\.]+\s*-\s*[\d\.]+', clean_raw):
-            try:
-                return float(m_gt.group(1)), None, raw
-            except ValueError:
-                pass
-
-        # Match '13.0 - 17.0' or '13.0 to 17.0'
-        m_between = re.search(r'([\d\.]+)\s*(?:-|–|to)\s*([\d\.]+)', clean_raw)
+        # Match two-ended range first e.g. '13.0 - 17.0', '13.0 to 17.0', '13–17', '13—17', '13 ~ 17'
+        m_between = re.search(r'([\d\.]+)\s*(?:-|–|—|~|\bto\b)\s*([\d\.]+)', clean_raw, re.IGNORECASE)
         if m_between:
             try:
                 low = float(m_between.group(1))
                 high = float(m_between.group(2))
                 return low, high, raw
+            except ValueError:
+                pass
+
+        # Match '< 200', '<= 200', '<5'
+        m_lt = re.search(r'(?:<|<=|less than|up to)\s*([\d\.]+)', clean_raw, re.IGNORECASE)
+        if m_lt:
+            try:
+                return None, float(m_lt.group(1)), raw
+            except ValueError:
+                pass
+
+        # Match '> 50', '>= 50', '>13', '13+'
+        m_gt = re.search(r'(?:>|>=|greater than)\s*([\d\.]+)', clean_raw, re.IGNORECASE)
+        if m_gt:
+            try:
+                return float(m_gt.group(1)), None, raw
+            except ValueError:
+                pass
+
+        # Match '13+' pattern
+        m_plus = re.search(r'([\d\.]+)\s*\+', clean_raw)
+        if m_plus:
+            try:
+                return float(m_plus.group(1)), None, raw
             except ValueError:
                 pass
 
