@@ -15,6 +15,10 @@ class ReportSummaryItem(BaseModel):
     within_count: int = 0
     unknown_count: int = 0
     status: str = "completed"
+    document_type: Optional[str] = "laboratory_report"
+    file_size: Optional[int] = 245760
+    page_count: Optional[int] = 1
+    verification_status: Optional[str] = "verified"
 
 class ReportDetailResponse(BaseModel):
     id: str

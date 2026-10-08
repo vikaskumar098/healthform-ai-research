@@ -43,6 +43,13 @@ MAX_FILE_SIZE = 15 * 1024 * 1024  # 15 MB
 # ══════════════════════════════════════════════════════════════════════════════
 
 async def process_report_pipeline(file_path: str, filename: str, user_id: str) -> dict:
+    import time
+    pipeline_start = time.time()
+    def _log_time(step_name, start_t):
+        elapsed = time.time() - start_t
+        logger.info(f"[TIMING] {step_name} took {elapsed:.3f}s")
+        return time.time()
+    
     """Executes the upgraded HealthForm AI multimodal processing pipeline:
       STEP 1 — File Preprocessing & Quality Assessment (ImageProcessor / PyMuPDF)
       STEP 2 — Document Quality Assessment Gate
@@ -118,6 +125,8 @@ async def process_report_pipeline(file_path: str, filename: str, user_id: str) -
             },
         )
 
+    t = _log_time("STEP 1 & 2 (Preprocess + Gate)", pipeline_start)
+
     # ── STEP 3: Document Type Classification — GATE 1 ────────────────────────
     # Stage 1: AI multimodal classification
     first_img_bytes = page_images[0][0] if page_images else None
@@ -167,6 +176,8 @@ async def process_report_pipeline(file_path: str, filename: str, user_id: str) -
                 "validation_score": round(validation_result.total_score, 1),
             },
         )
+
+    t = _log_time("STEP 3 (Classification Gate)", t)
 
     # ── STEP 4: Structured Parameter Extraction — GATE 2 ────────────────────
     extracted_params: List[LaboratoryParameter] = []
@@ -244,6 +255,8 @@ async def process_report_pipeline(file_path: str, filename: str, user_id: str) -
             },
         )
 
+    t = _log_time("STEP 4 (Parameter Extraction)", t)
+
     # ── STEP 5: Parameter Validation & Noise Removal ─────────────────────────
     validated_params = ValidationService.validate_parameters(extracted_params)
 
@@ -251,18 +264,27 @@ async def process_report_pipeline(file_path: str, filename: str, user_id: str) -
     # CRITICAL REQUIREMENT: Backend deterministic calculation is the single source of truth!
     final_params = [AnalysisService.classify_parameter_status(p) for p in validated_params]
 
+    t = _log_time("STEP 5 & 6 (Validation & Classification)", t)
+
     # ── STEP 7: RAG Retrieval ────────────────────────────────────────────────
     test_queries = " ".join([p.test_name for p in final_params[:5]])
     evidence_chunks = rag_service.retrieve(test_queries, top_k=3)
 
+    t = _log_time("STEP 7 (RAG Retrieval)", t)
+
     # ── STEP 8: LLM Grounded Explanation ───────────────────────────────────
     analysis = GeminiService.generate_grounded_explanation(final_params, evidence_chunks, meta)
+
+    t = _log_time("STEP 8 (LLM Explanation)", t)
 
     # ── STEP 9: Claim Verification ───────────────────────────────────────────
     verified_claims = ClaimVerificationEngine.verify_claims(
         analysis.claims, final_params, evidence_chunks
     )
     analysis.claims = verified_claims
+
+    t = _log_time("STEP 9 (Claim Verification)", t)
+    _log_time("TOTAL PIPELINE", pipeline_start)
 
     # ── Summary counters ─────────────────────────────────────────────────────
     below_c   = sum(1 for p in final_params if p.status == "below_reported_range")
@@ -526,9 +548,40 @@ async def list_reports(current_user: dict = Depends(get_current_user)):
     summaries: List[ReportSummaryItem] = []
     for d in docs:
         counts = d.get("summary_counts", {})
+        f_path = d.get("file_path")
+        f_size = 250880
+        if f_path and os.path.exists(f_path):
+            try:
+                f_size = os.path.getsize(f_path)
+            except Exception:
+                pass
+
+        fname = d.get("filename", "report")
+        doc_type = d.get("document_type") or "Laboratory Report"
+        # Refine type display from filename if generic
+        lower_fname = fname.lower()
+        if "cbc" in lower_fname:
+            doc_type = "CBC Report"
+        elif "lipid" in lower_fname:
+            doc_type = "Lipid Profile"
+        elif "thyroid" in lower_fname:
+            doc_type = "Thyroid Function"
+        elif "liver" in lower_fname or "lft" in lower_fname:
+            doc_type = "Liver Function Test"
+        elif "kidney" in lower_fname or "kft" in lower_fname:
+            doc_type = "Kidney Function"
+        elif "sugar" in lower_fname or "glucose" in lower_fname or "hba1c" in lower_fname:
+            doc_type = "Blood Sugar (HbA1c)"
+        elif "vitamin" in lower_fname:
+            doc_type = "Vitamin D"
+        elif "iron" in lower_fname:
+            doc_type = "Iron Studies"
+        elif "electrolyte" in lower_fname:
+            doc_type = "Electrolytes"
+
         summaries.append(ReportSummaryItem(
             id=str(d.get("_id")),
-            filename=d.get("filename", "report"),
+            filename=fname,
             upload_date=d.get("upload_date", ""),
             report_date=d.get("report_date"),
             patient_name=d.get("patient_name"),
@@ -538,6 +591,10 @@ async def list_reports(current_user: dict = Depends(get_current_user)):
             within_count=counts.get("within", 0),
             unknown_count=counts.get("unknown", 0),
             status=d.get("processing_status", "completed"),
+            document_type=doc_type,
+            file_size=f_size,
+            page_count=d.get("page_count", 1),
+            verification_status="Verified" if d.get("processing_status") == "completed" else "Pending"
         ))
     return summaries
 

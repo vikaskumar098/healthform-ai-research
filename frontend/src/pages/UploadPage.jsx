@@ -151,7 +151,7 @@ const AIProcessingScreen = ({
   ];
 
   return (
-    <div className="min-h-screen bg-[#030816] text-slate-100 selection:bg-cyan-500 selection:text-white pb-20 relative overflow-hidden font-sans">
+    <div className="w-full min-h-full bg-[#030816] text-slate-100 selection:bg-cyan-500 selection:text-white pb-20 relative overflow-x-hidden font-sans">
       
       {/* Background Ambient Glows & Grid */}
       <div className="absolute inset-0 bg-grid opacity-25 pointer-events-none" />
@@ -899,7 +899,7 @@ const UploadPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#040a19] text-slate-100 selection:bg-cyan-500 selection:text-white pb-20">
+    <div className="w-full min-h-full bg-[#040a19] text-slate-100 selection:bg-cyan-500 selection:text-white pb-20 relative overflow-x-hidden">
       
       {/* Background Ambient Glows */}
       <div className="absolute top-10 left-1/3 w-[600px] h-[350px] bg-blue-600/10 rounded-full blur-[140px] pointer-events-none" />
@@ -989,7 +989,7 @@ const UploadPage = () => {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
           
           {/* ── LEFT: SYNTHETIC REPORT DOCUMENT & 4 FLOATING CALLOUTS (5 cols) ── */}
-          <div className="lg:col-span-5 flex flex-col sm:flex-row items-center justify-center gap-4 p-4 rounded-3xl bg-slate-900/60 border border-white/[0.08] backdrop-blur-xl relative overflow-hidden group">
+          <div className="lg:col-span-5 flex flex-col 2xl:flex-row items-center justify-center gap-4 p-4 rounded-3xl bg-slate-900/60 border border-white/[0.08] backdrop-blur-xl relative overflow-hidden group">
             
             {/* Ambient behind document */}
             <div className="absolute inset-0 bg-gradient-to-br from-blue-600/10 via-cyan-500/5 to-transparent pointer-events-none" />

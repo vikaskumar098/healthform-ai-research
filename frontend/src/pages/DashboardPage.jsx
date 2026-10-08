@@ -97,10 +97,9 @@ const DashboardPage = () => {
   const recentReports = reports.slice(0, 6);
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10 space-y-10 page-enter">
-
-      {/* ─── Greeting ──────────────────────────────────── */}
-      <div className="animate-fade-in-up">
+    <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-10 page-enter">
+        {/* ─── Greeting ──────────────────────────────────── */}
+        <div className="animate-fade-in-up">
         <h1 className="text-2xl sm:text-3xl font-bold text-white">
           Hello, {firstName} 👋
         </h1>
@@ -269,7 +268,7 @@ const DashboardPage = () => {
         </div>
       </ScrollReveal>
 
-    </div>
+      </main>
   );
 };
 

@@ -537,6 +537,15 @@ const ReportAnalysisPage = () => {
             </button>
 
             <Link
+              to={`/reports/${id}/details`}
+              className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.09] border border-white/10 text-slate-200 text-xs font-semibold transition-all cursor-pointer"
+              title="View technical pipeline and verification details"
+            >
+              <FileCheck className="w-3.5 h-3.5 text-cyan-400" />
+              <span>Analysis Details</span>
+            </Link>
+
+            <Link
               to={`/comparison?initial=${id}`}
               className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white text-xs font-semibold shadow-md shadow-blue-500/25 transition-all"
             >

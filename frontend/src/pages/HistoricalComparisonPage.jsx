@@ -1,303 +1,752 @@
-import React, { useState, useEffect } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import { reportService } from '../services/reportService';
+import ReportThumbnail from '../components/common/ReportThumbnail';
 import {
-  GitCompare,
-  AlertCircle,
-  Info,
-  CheckSquare,
-  Square,
-  Loader2,
-  UploadCloud,
-  TrendingUp,
+  ArrowLeft,
+  Plus,
+  Search,
+  ChevronDown,
+  ChevronRight,
   TrendingDown,
+  TrendingUp,
   Minus,
+  CheckCircle2,
+  AlertCircle,
+  FileText,
+  UploadCloud,
+  Loader2,
+  X,
+  Check,
+  Droplets,
+  Activity,
+  Sparkles,
+  Layers,
 } from 'lucide-react';
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Legend,
-} from 'recharts';
+
+/* ─── Test Icon Selector ─── */
+const getTestIcon = (name = '') => {
+  const lower = name.toLowerCase();
+  if (lower.includes('hemo') || lower.includes('rbc') || lower.includes('hematocrit')) {
+    return { icon: Droplets, color: 'text-rose-400 bg-rose-500/15 border border-rose-500/30' };
+  }
+  if (lower.includes('wbc') || lower.includes('platelet') || lower.includes('neutro')) {
+    return { icon: Sparkles, color: 'text-cyan-400 bg-cyan-500/15 border border-cyan-500/30' };
+  }
+  return { icon: Activity, color: 'text-blue-400 bg-blue-500/15 border border-blue-500/30' };
+};
+
+/* ─── Mini Sparkline Component ─── */
+const Sparkline = ({ points = [], trend = 'Stable' }) => {
+  if (!points || points.length < 2) {
+    return (
+      <div className="w-20 h-5 flex items-center justify-center text-slate-500">
+        <Minus className="w-4 h-4" />
+      </div>
+    );
+  }
+
+  const values = points.map((p) => (typeof p === 'number' ? p : p.value || 0));
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = max - min || 1;
+
+  const width = 80;
+  const height = 20;
+  const padding = 3;
+
+  const coords = values.map((val, idx) => {
+    const x = padding + (idx / (values.length - 1)) * (width - padding * 2);
+    const y = height - padding - ((val - min) / range) * (height - padding * 2);
+    return { x, y };
+  });
+
+  const pathD = coords.reduce((acc, pt, i) => `${acc} ${i === 0 ? 'M' : 'L'} ${pt.x.toFixed(1)} ${pt.y.toFixed(1)}`, '');
+
+  const strokeColor =
+    trend === 'Increasing'
+      ? '#10b981' // emerald
+      : trend === 'Decreasing'
+      ? '#f43f5e' // rose
+      : '#38bdf8'; // cyan
+
+  return (
+    <svg width={width} height={height} className="overflow-visible">
+      <path d={pathD} fill="none" stroke={strokeColor} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+      {coords.map((pt, i) => (
+        <circle key={i} cx={pt.x} cy={pt.y} r="2.2" fill={strokeColor} stroke="#090d16" strokeWidth="1" />
+      ))}
+    </svg>
+  );
+};
+
+/* ─── Helper: Format date string ─── */
+const formatShortDate = (str) => {
+  if (!str) return '—';
+  try {
+    const d = new Date(str);
+    if (isNaN(d.getTime())) return str;
+    return d.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+  } catch {
+    return str;
+  }
+};
 
 const HistoricalComparisonPage = () => {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const initialReportId = searchParams.get('initial');
 
-  const [reports, setReports] = useState([]);
+  const [allReports, setAllReports] = useState([]);
   const [selectedIds, setSelectedIds] = useState([]);
-  const [comparisonResult, setComparisonResult] = useState(null);
+  const [comparison, setComparison] = useState(null);
   const [loading, setLoading] = useState(true);
   const [comparing, setComparing] = useState(false);
   const [error, setError] = useState('');
 
-  useEffect(() => { loadReports(); }, []);
+  // Filtering & Search
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeFilterTab, setActiveFilterTab] = useState('all'); // all | changed | improved | worsened | no_change
+  const [sortBy, setSortBy] = useState('name_asc'); // name_asc | name_desc | change_desc | change_asc
+  const [filterByChange, setFilterByChange] = useState('all'); // all | improved | worsened | no_change
 
-  const loadReports = async () => {
+  // Selector modal
+  const [selectorOpen, setSelectorOpen] = useState(false);
+
+  useEffect(() => {
+    loadAllReports();
+  }, []);
+
+  const loadAllReports = async () => {
+    setLoading(true);
     try {
       const data = await reportService.listReports();
-      setReports(data);
+      setAllReports(data || []);
 
-      if (initialReportId && data.some(r => r.id === initialReportId)) {
-        const other = data.find(r => r.id !== initialReportId);
-        if (other) {
-          const ids = [initialReportId, other.id];
-          setSelectedIds(ids);
-          runComparison(ids);
+      if (data && data.length >= 2) {
+        let initialIds = [];
+        if (initialReportId && data.some((r) => r.id === initialReportId)) {
+          const others = data.filter((r) => r.id !== initialReportId);
+          initialIds = [initialReportId, others[0].id];
+          if (others.length > 1) {
+            initialIds.push(others[1].id);
+          }
         } else {
-          setSelectedIds([initialReportId]);
+          // Take first up to 3 reports
+          initialIds = data.slice(0, Math.min(3, data.length)).map((r) => r.id);
         }
-      } else if (data.length >= 2) {
-        const ids = [data[0].id, data[1].id];
-        setSelectedIds(ids);
-        runComparison(ids);
+        setSelectedIds(initialIds);
+        fetchComparison(initialIds);
+      } else if (data && data.length === 1) {
+        setSelectedIds([data[0].id]);
       }
-    } catch (_) {
-      setError('Could not load your reports.');
+    } catch (err) {
+      setError('Failed to load user reports from database.');
     } finally {
       setLoading(false);
     }
   };
 
-  const runComparison = async (ids) => {
-    if (ids.length < 2) { setComparisonResult(null); return; }
-    setComparing(true); setError('');
+  const fetchComparison = async (ids) => {
+    if (ids.length < 2) {
+      setComparison(null);
+      return;
+    }
+    setComparing(true);
+    setError('');
     try {
       const res = await reportService.compareReports(ids);
-      setComparisonResult(res);
+      setComparison(res);
     } catch (err) {
-      setError(err.response?.data?.detail || 'Comparison failed. Please try again.');
-    } finally { setComparing(false); }
-  };
-
-  const toggle = (id) => {
-    const newIds = selectedIds.includes(id)
-      ? selectedIds.filter(x => x !== id)
-      : [...selectedIds, id];
-    setSelectedIds(newIds);
-    if (newIds.length >= 2) runComparison(newIds);
-    else setComparisonResult(null);
-  };
-
-  const parameters = comparisonResult?.parameters || [];
-  const chartData = parameters.map((p) => ({
-    name: p.test_name.length > 14 ? p.test_name.slice(0, 14) + '…' : p.test_name,
-    fullName: p.test_name,
-    Previous: p.previous_value,
-    Current: p.current_value,
-    unit: p.unit,
-  }));
-
-  /* ── delta indicator ── */
-  const DeltaCell = ({ abs, pct }) => {
-    if (abs === 0 || abs === null) {
-      return <span className="text-slate-500 text-xs flex items-center space-x-1"><Minus className="w-3 h-3" /><span>No change</span></span>;
+      setError(err.response?.data?.detail || 'Comparison calculation failed.');
+    } finally {
+      setComparing(false);
     }
-    const up = abs > 0;
-    return (
-      <span className={`flex items-center space-x-1 text-xs font-semibold ${up ? 'text-blue-400' : 'text-purple-400'}`}>
-        {up ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
-        <span>{up ? '+' : ''}{abs}</span>
-        {pct !== null && pct !== undefined && (
-          <span className="text-slate-500 font-normal">({up ? '+' : ''}{pct}%)</span>
-        )}
-      </span>
-    );
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-[60vh] flex items-center justify-center">
-        <Loader2 className="w-6 h-6 text-brand-400 animate-spin" />
-      </div>
-    );
-  }
+  const toggleSelectReport = (id) => {
+    let nextIds = [];
+    if (selectedIds.includes(id)) {
+      if (selectedIds.length <= 1) return; // Keep at least 1
+      nextIds = selectedIds.filter((item) => item !== id);
+    } else {
+      if (selectedIds.length >= 3) {
+        // Replace oldest selection
+        nextIds = [...selectedIds.slice(1), id];
+      } else {
+        nextIds = [...selectedIds, id];
+      }
+    }
+    setSelectedIds(nextIds);
+    fetchComparison(nextIds);
+  };
+
+  // Selected report objects from allReports
+  const selectedReportDocs = useMemo(() => {
+    return selectedIds
+      .map((id) => allReports.find((r) => r.id === id))
+      .filter(Boolean)
+      .sort((a, b) => new Date(a.report_date || a.upload_date) - new Date(b.report_date || b.upload_date));
+  }, [selectedIds, allReports]);
+
+  // Parameters processing with filters and sorting
+  const filteredParameters = useMemo(() => {
+    if (!comparison || !comparison.parameters) return [];
+    let list = [...comparison.parameters];
+
+    // Search
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      list = list.filter((p) => p.test_name.toLowerCase().includes(q) || (p.unit && p.unit.toLowerCase().includes(q)));
+    }
+
+    // Filter Tab
+    if (activeFilterTab === 'changed') {
+      list = list.filter((p) => Math.abs(p.absolute_change) > 0.001);
+    } else if (activeFilterTab === 'improved') {
+      list = list.filter((p) => p.status_direction === 'improved');
+    } else if (activeFilterTab === 'worsened') {
+      list = list.filter((p) => p.status_direction === 'worsened');
+    } else if (activeFilterTab === 'no_change') {
+      list = list.filter((p) => p.status_direction === 'no_change');
+    }
+
+    // Dropdown Filter
+    if (filterByChange === 'improved') {
+      list = list.filter((p) => p.status_direction === 'improved');
+    } else if (filterByChange === 'worsened') {
+      list = list.filter((p) => p.status_direction === 'worsened');
+    } else if (filterByChange === 'no_change') {
+      list = list.filter((p) => p.status_direction === 'no_change');
+    }
+
+    // Sorting
+    list.sort((a, b) => {
+      if (sortBy === 'name_asc') return a.test_name.localeCompare(b.test_name);
+      if (sortBy === 'name_desc') return b.test_name.localeCompare(a.test_name);
+      if (sortBy === 'change_desc') return Math.abs(b.percentage_change) - Math.abs(a.percentage_change);
+      if (sortBy === 'change_asc') return Math.abs(a.percentage_change) - Math.abs(b.percentage_change);
+      return 0;
+    });
+
+    return list;
+  }, [comparison, searchQuery, activeFilterTab, filterByChange, sortBy]);
+
+  // Summary counts
+  const summaryCounts = useMemo(() => {
+    if (comparison?.summary_counts) {
+      const { improved, worsened, no_change, total } = comparison.summary_counts;
+      const totalSafe = total || 1;
+      return {
+        improved,
+        improvedPct: Math.round((improved / totalSafe) * 100),
+        worsened,
+        worsenedPct: Math.round((worsened / totalSafe) * 100),
+        no_change,
+        noChangePct: Math.round((no_change / totalSafe) * 100),
+        total,
+        changed: improved + worsened,
+      };
+    }
+    return {
+      improved: 0,
+      improvedPct: 0,
+      worsened: 0,
+      worsenedPct: 0,
+      no_change: 0,
+      noChangePct: 0,
+      total: 0,
+      changed: 0,
+    };
+  }, [comparison]);
+
+  // Unique report dates for table columns
+  const tableDateHeaders = useMemo(() => {
+    if (selectedReportDocs.length > 0) {
+      return selectedReportDocs.map((r) => formatShortDate(r.report_date || r.upload_date));
+    }
+    return ['Previous Date', 'Current Date'];
+  }, [selectedReportDocs]);
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10 space-y-8">
-
-      {/* Header */}
-      <div className="animate-fade-in-up">
-        <h1 className="text-2xl sm:text-3xl font-bold text-white flex items-center space-x-3">
-          <GitCompare className="w-7 h-7 text-emerald-400" />
-          <span>Compare Reports</span>
-        </h1>
-        <p className="text-sm text-slate-400 mt-1">
-          See how your test results have changed between two reports
-        </p>
-      </div>
-
-      {error && (
-        <div className="flex items-center space-x-3 p-4 rounded-2xl bg-rose-950/40 border border-rose-800/50 text-sm text-rose-300">
-          <AlertCircle className="w-5 h-5 flex-shrink-0" />
-          <span>{error}</span>
-        </div>
-      )}
-
-      {/* Report selection */}
-      <div className="glass-card border border-white/[0.07] rounded-3xl p-6 space-y-4 animate-fade-in-up animate-fade-in-up-delay-1">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-base font-bold text-white">Select 2 Reports to Compare</h2>
-            <p className="text-xs text-slate-400 mt-0.5">
-              {selectedIds.length < 2
-                ? `Select ${2 - selectedIds.length} more report${2 - selectedIds.length !== 1 ? 's' : ''}`
-                : '✅ Comparison ready'
-              }
+    <>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+        {/* Back Link & Header */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <Link
+              to="/history"
+              className="inline-flex items-center space-x-1.5 text-xs text-slate-400 hover:text-white transition-colors"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Back to Reports</span>
+            </Link>
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
+              Compare Reports
+            </h1>
+            <p className="text-xs sm:text-sm text-slate-400">
+              See how your test results have changed over time.
             </p>
           </div>
-          {selectedIds.length >= 2 && (
-            <span className="px-3 py-1.5 rounded-xl bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-xs font-semibold">
-              Ready
+
+          {/* Top Right Action Button */}
+          <div className="flex flex-col items-start md:items-end self-start md:self-auto">
+            <button
+              type="button"
+              onClick={() => setSelectorOpen(true)}
+              className="inline-flex items-center space-x-2 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs shadow-lg shadow-blue-600/30 transition-all cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add Report to Compare</span>
+            </button>
+            <span className="text-[11px] text-slate-400 mt-1">
+              Select up to 3 reports to compare
             </span>
-          )}
+          </div>
         </div>
 
-        {reports.length === 0 ? (
-          <div className="py-8 text-center space-y-3">
-            <p className="text-slate-400 text-sm">You need at least 2 reports to compare.</p>
-            <Link
-              to="/upload"
-              className="inline-flex items-center space-x-2 px-4 py-2.5 rounded-xl bg-brand-600 text-white text-sm font-semibold hover:bg-brand-500 transition-colors"
-            >
-              <UploadCloud className="w-4 h-4" />
-              <span>Upload a Report</span>
-            </Link>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {reports.map((r) => {
-              const selected = selectedIds.includes(r.id);
-              return (
-                <div
-                  key={r.id}
-                  onClick={() => toggle(r.id)}
-                  className={`p-4 rounded-2xl border cursor-pointer transition-all ${
-                    selected
-                      ? 'bg-brand-950/40 border-brand-500/60 ring-1 ring-brand-500/30'
-                      : 'bg-slate-900/60 border-white/[0.07] hover:border-white/[0.14] hover:bg-slate-900'
-                  }`}
-                >
-                  <div className="flex items-center space-x-2.5 mb-2">
-                    {selected
-                      ? <CheckSquare className="w-4 h-4 text-brand-400 flex-shrink-0" />
-                      : <Square className="w-4 h-4 text-slate-600 flex-shrink-0" />
-                    }
-                    <p className="font-semibold text-white text-sm truncate">
-                      {r.patient_name || 'Lab Report'}
-                    </p>
+        {/* ── 1. Report Selection Cards (Up to 3 Horizontal Cards) ── */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {selectedReportDocs.map((rep, idx) => {
+            const isRecent = idx === selectedReportDocs.length - 1;
+            const isOldest = idx === 0 && selectedReportDocs.length > 1;
+            const label = isRecent ? 'Recent Report' : isOldest ? 'Older Report' : 'Previous Report';
+
+            return (
+              <div
+                key={rep.id}
+                className="relative rounded-2xl bg-slate-900/80 border border-white/[0.08] p-4 flex items-center space-x-4 shadow-xl shadow-black/30 hover:border-blue-500/40 transition-all group"
+              >
+                {/* Document Thumbnail */}
+                <ReportThumbnail type={rep.document_type || 'CBC Report'} size="md" />
+
+                {/* Info */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-semibold text-blue-400 uppercase tracking-wider">
+                      {label}
+                    </span>
+                    {/* Checked Badge */}
+                    <div className="w-5 h-5 rounded-full bg-blue-600 flex items-center justify-center text-white shadow-sm shadow-blue-500/50">
+                      <Check className="w-3 h-3 stroke-[3]" />
+                    </div>
                   </div>
-                  <p className="text-xs text-slate-400 ml-6.5">
-                    {r.report_date || r.upload_date}
-                    {r.parameters_count > 0 && ` · ${r.parameters_count} tests`}
+                  <h3 className="text-sm font-bold text-white mt-0.5 truncate">
+                    {formatShortDate(rep.report_date || rep.upload_date)}
+                  </h3>
+                  <p className="text-xs text-slate-300 font-medium truncate mt-0.5">
+                    {rep.document_type || 'CBC Report'}
+                  </p>
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    {rep.parameters_count || 12} parameters
                   </p>
                 </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+              </div>
+            );
+          })}
 
-      {/* Loading comparison */}
-      {comparing && (
-        <div className="flex items-center justify-center py-10 space-x-3 text-slate-400">
-          <Loader2 className="w-5 h-5 animate-spin text-brand-400" />
-          <span className="text-sm">Comparing reports…</span>
+          {/* Add Slot if less than 3 */}
+          {selectedReportDocs.length < 3 && (
+            <button
+              type="button"
+              onClick={() => setSelectorOpen(true)}
+              className="rounded-2xl border-2 border-dashed border-white/10 hover:border-blue-500/50 hover:bg-white/[0.02] p-4 flex flex-col items-center justify-center text-center transition-all cursor-pointer min-h-[96px]"
+            >
+              <div className="w-8 h-8 rounded-full bg-white/[0.04] flex items-center justify-center text-slate-400 group-hover:text-blue-400 mb-1">
+                <Plus className="w-4 h-4" />
+              </div>
+              <span className="text-xs font-semibold text-slate-300">Add 3rd Report</span>
+              <span className="text-[10px] text-slate-400">Click to compare longitudinal trend</span>
+            </button>
+          )}
         </div>
-      )}
 
-      {/* Results */}
-      {comparisonResult && !comparing && (
-        <div className="space-y-6 animate-fade-in-up">
-
-          {/* Observation */}
-          {comparisonResult.neutral_observation && (
-            <div className="flex items-start space-x-3 p-5 rounded-2xl bg-slate-900/60 border border-white/[0.07]">
-              <Info className="w-5 h-5 text-brand-400 flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="text-sm font-semibold text-white mb-1">Summary</p>
-                <p className="text-sm text-slate-300 leading-relaxed">
-                  {comparisonResult.neutral_observation}
-                </p>
+        {/* ── 2. Summary Metric Cards (Improved, Worsened, No Change, Total) ── */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+          {/* Card 1: Improved */}
+          <div className="rounded-2xl bg-slate-900/70 border border-white/[0.07] p-4 shadow-lg flex items-center space-x-3.5">
+            <div className="w-11 h-11 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 flex-shrink-0">
+              <TrendingUp className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="text-2xl font-black text-white leading-none">
+                {summaryCounts.improved}
+              </div>
+              <div className="text-xs text-slate-400 font-medium mt-1">
+                Improved <span className="text-emerald-400 font-semibold">({summaryCounts.improvedPct}%)</span>
               </div>
             </div>
-          )}
+          </div>
 
-          {/* Chart */}
-          {chartData.length > 0 && (
-            <div className="glass-card border border-white/[0.07] rounded-3xl p-6 space-y-4">
-              <h2 className="text-base font-bold text-white">Value Comparison Chart</h2>
-              <p className="text-xs text-slate-500">Grey = previous · Blue = current · Numbers show measured values</p>
-              <div className="h-72 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 30 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                    <XAxis dataKey="name" stroke="#64748b" fontSize={10} angle={-25} textAnchor="end" />
-                    <YAxis stroke="#64748b" fontSize={10} />
-                    <Tooltip
-                      contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '1rem', fontSize: '12px' }}
-                      formatter={(val, name, item) => [`${val} ${item.payload.unit}`, name]}
-                    />
-                    <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '16px' }} />
-                    <Bar dataKey="Previous" fill="#475569" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="Current" fill="#38bdf8" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
+          {/* Card 2: Worsened */}
+          <div className="rounded-2xl bg-slate-900/70 border border-white/[0.07] p-4 shadow-lg flex items-center space-x-3.5">
+            <div className="w-11 h-11 rounded-xl bg-rose-500/15 border border-rose-500/30 flex items-center justify-center text-rose-400 flex-shrink-0">
+              <TrendingDown className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="text-2xl font-black text-white leading-none">
+                {summaryCounts.worsened}
+              </div>
+              <div className="text-xs text-slate-400 font-medium mt-1">
+                Worsened <span className="text-rose-400 font-semibold">({summaryCounts.worsenedPct}%)</span>
               </div>
             </div>
-          )}
+          </div>
 
-          {/* Delta table */}
-          {parameters.length > 0 && (
-            <div className="glass-card border border-white/[0.07] rounded-3xl overflow-hidden">
-              <div className="p-5 border-b border-white/[0.06]">
-                <h2 className="text-base font-bold text-white">
-                  Detailed Changes ({parameters.length} matching tests)
-                </h2>
-                <p className="text-xs text-slate-400 mt-1">
-                  Changes shown as numbers only — not labeled as "better" or "worse"
-                </p>
+          {/* Card 3: No Change */}
+          <div className="rounded-2xl bg-slate-900/70 border border-white/[0.07] p-4 shadow-lg flex items-center space-x-3.5">
+            <div className="w-11 h-11 rounded-xl bg-blue-500/15 border border-blue-500/30 flex items-center justify-center text-blue-400 flex-shrink-0">
+              <Minus className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="text-2xl font-black text-white leading-none">
+                {summaryCounts.no_change}
               </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="bg-slate-950/60 text-xs text-slate-400 font-medium border-b border-white/[0.06]">
-                      <th className="text-left py-3 px-4">Test</th>
-                      <th className="text-center py-3 px-4">Previous</th>
-                      <th className="text-center py-3 px-4">Current</th>
-                      <th className="text-left py-3 px-4">Unit</th>
-                      <th className="text-left py-3 px-4">Change</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-white/[0.04]">
-                    {parameters.map((p, i) => (
-                      <tr key={i} className="hover:bg-slate-800/30 transition-colors">
-                        <td className="py-3.5 px-4 font-semibold text-white">{p.test_name}</td>
-                        <td className="py-3.5 px-4 text-center text-slate-400 font-mono">{p.previous_value}</td>
-                        <td className="py-3.5 px-4 text-center text-white font-mono font-bold">{p.current_value}</td>
-                        <td className="py-3.5 px-4 text-slate-400 text-xs">{p.unit}</td>
-                        <td className="py-3.5 px-4">
-                          <DeltaCell abs={p.absolute_change} pct={p.percentage_change} />
+              <div className="text-xs text-slate-400 font-medium mt-1">
+                No Change <span className="text-blue-400 font-semibold">({summaryCounts.noChangePct}%)</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Card 4: Total Parameters */}
+          <div className="rounded-2xl bg-slate-900/70 border border-white/[0.07] p-4 shadow-lg flex items-center space-x-3.5">
+            <div className="w-11 h-11 rounded-xl bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center text-cyan-400 flex-shrink-0">
+              <Layers className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="text-2xl font-black text-white leading-none">
+                {summaryCounts.total}
+              </div>
+              <div className="text-xs text-slate-400 font-medium mt-1">
+                Total Parameters
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ── 3. Filter Tabs (Pill Buttons) ── */}
+        <div className="flex items-center flex-wrap gap-2 border-b border-white/[0.06] pb-3">
+          {[
+            { id: 'all', label: `All Parameters (${summaryCounts.total})` },
+            { id: 'changed', label: `Changed (${summaryCounts.changed})` },
+            { id: 'improved', label: `Improved (${summaryCounts.improved})` },
+            { id: 'worsened', label: `Worsened (${summaryCounts.worsened})` },
+            { id: 'no_change', label: `No Change (${summaryCounts.no_change})` },
+          ].map((tab) => {
+            const isActive = activeFilterTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveFilterTab(tab.id)}
+                className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${
+                  isActive
+                    ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
+                    : 'bg-white/[0.04] text-slate-300 hover:bg-white/[0.08] hover:text-white'
+                }`}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* ── 4. Search and Dropdown Filter Row ── */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+          {/* Search Box */}
+          <div className="relative w-full sm:w-72">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search tests..."
+              className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-900 border border-white/10 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-all"
+            />
+          </div>
+
+          {/* Sort & Filter Controls */}
+          <div className="flex items-center space-x-2.5 w-full sm:w-auto justify-end">
+            {/* Sort by */}
+            <div className="flex items-center space-x-1.5 text-xs text-slate-400">
+              <span className="hidden sm:inline">Sort by:</span>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="bg-slate-900 border border-white/10 text-slate-200 text-xs rounded-xl px-3 py-1.5 focus:outline-none focus:border-blue-500"
+              >
+                <option value="name_asc">Name A-Z</option>
+                <option value="name_desc">Name Z-A</option>
+                <option value="change_desc">Change % (High to Low)</option>
+                <option value="change_asc">Change % (Low to High)</option>
+              </select>
+            </div>
+
+            {/* Filter by */}
+            <div className="flex items-center space-x-1.5 text-xs text-slate-400">
+              <span className="hidden sm:inline">Filter by:</span>
+              <select
+                value={filterByChange}
+                onChange={(e) => setFilterByChange(e.target.value)}
+                className="bg-slate-900 border border-white/10 text-slate-200 text-xs rounded-xl px-3 py-1.5 focus:outline-none focus:border-blue-500"
+              >
+                <option value="all">All Changes</option>
+                <option value="improved">Improved Only</option>
+                <option value="worsened">Worsened Only</option>
+                <option value="no_change">No Change Only</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* ── 5. Comparison Table ── */}
+        {loading || comparing ? (
+          <div className="rounded-2xl bg-slate-900/60 border border-white/[0.06] p-12 flex flex-col items-center justify-center space-y-3">
+            <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+            <p className="text-xs text-slate-400">Calculating historical parameter trends...</p>
+          </div>
+        ) : selectedReportDocs.length < 2 ? (
+          <div className="rounded-2xl bg-slate-900/60 border border-white/[0.06] p-12 text-center space-y-4">
+            <div className="w-12 h-12 rounded-2xl bg-blue-500/15 border border-blue-500/30 text-blue-400 flex items-center justify-center mx-auto">
+              <FileText className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-white">Select at least 2 reports to compare</h3>
+              <p className="text-xs text-slate-400 max-w-md mx-auto mt-1">
+                Historical comparison computes numerical trends across matching test parameters over time.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSelectorOpen(true)}
+              className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold transition-all cursor-pointer"
+            >
+              Select Reports
+            </button>
+          </div>
+        ) : filteredParameters.length === 0 ? (
+          <div className="rounded-2xl bg-slate-900/60 border border-white/[0.06] p-12 text-center space-y-2">
+            <p className="text-sm font-semibold text-slate-300">No matching parameters found</p>
+            <p className="text-xs text-slate-400">Try adjusting your search query or active filter tab.</p>
+          </div>
+        ) : (
+          <div className="rounded-2xl bg-slate-900/70 border border-white/[0.07] overflow-hidden shadow-xl">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="border-b border-white/[0.08] bg-slate-950/50 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                    <th className="py-3 px-4">Test Name</th>
+                    {tableDateHeaders.map((hdr, i) => (
+                      <th key={i} className="py-3 px-4 text-center">
+                        {hdr}
+                      </th>
+                    ))}
+                    <th className="py-3 px-4 text-center">Change</th>
+                    <th className="py-3 px-4 text-center">Trend</th>
+                    <th className="py-3 px-4 text-center">Status</th>
+                    <th className="py-3 px-2 text-right"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/[0.05]">
+                  {filteredParameters.map((param, pIdx) => {
+                    const iconConfig = getTestIcon(param.test_name);
+                    const IconComponent = iconConfig.icon;
+
+                    const isUp = param.absolute_change > 0.001;
+                    const isDown = param.absolute_change < -0.001;
+                    const isZero = !isUp && !isDown;
+
+                    const seriesValues = param.values_series || [
+                      { value: param.previous_value },
+                      { value: param.current_value },
+                    ];
+
+                    const statusPillBg =
+                      param.trend === 'Decreasing'
+                        ? 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
+                        : param.trend === 'Increasing'
+                        ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                        : 'bg-slate-800 text-slate-300 border border-slate-700';
+
+                    return (
+                      <tr
+                        key={pIdx}
+                        className="hover:bg-white/[0.03] transition-colors group"
+                      >
+                        {/* Test Name & Icon */}
+                        <td className="py-3.5 px-4 font-medium text-white flex items-center space-x-3">
+                          <div
+                            className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${iconConfig.color}`}
+                          >
+                            <IconComponent className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <div className="font-semibold text-white group-hover:text-blue-400 transition-colors">
+                              {param.test_name}
+                            </div>
+                            <div className="text-[11px] text-slate-400 font-mono">
+                              {param.unit || 'units'}
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Date values */}
+                        {seriesValues.map((sItem, sIdx) => (
+                          <td
+                            key={sIdx}
+                            className="py-3.5 px-4 text-center font-mono font-medium text-slate-200"
+                          >
+                            {typeof sItem.value === 'number' ? sItem.value : sItem}
+                          </td>
+                        ))}
+
+                        {/* If 2 reports were selected but table has 3 date headers */}
+                        {seriesValues.length < tableDateHeaders.length && (
+                          <td className="py-3.5 px-4 text-center text-slate-600 font-mono">—</td>
+                        )}
+
+                        {/* Change */}
+                        <td className="py-3.5 px-4 text-center">
+                          <div
+                            className={`inline-flex flex-col items-center font-semibold font-mono ${
+                              param.trend === 'Decreasing'
+                                ? 'text-rose-400'
+                                : param.trend === 'Increasing'
+                                ? 'text-emerald-400'
+                                : 'text-slate-400'
+                            }`}
+                          >
+                            <span className="flex items-center space-x-0.5">
+                              {isDown ? (
+                                <TrendingDown className="w-3.5 h-3.5" />
+                              ) : isUp ? (
+                                <TrendingUp className="w-3.5 h-3.5" />
+                              ) : (
+                                <Minus className="w-3 h-3" />
+                              )}
+                              <span>
+                                {isUp ? '+' : ''}
+                                {param.absolute_change}
+                              </span>
+                            </span>
+                            <span className="text-[10px] opacity-80">
+                              ({isUp ? '+' : ''}
+                              {param.percentage_change}%)
+                            </span>
+                          </div>
+                        </td>
+
+                        {/* Trend Graphic */}
+                        <td className="py-3.5 px-4 text-center">
+                          <div className="flex justify-center">
+                            <Sparkline points={seriesValues} trend={param.trend} />
+                          </div>
+                        </td>
+
+                        {/* Status */}
+                        <td className="py-3.5 px-4 text-center">
+                          <span
+                            className={`inline-block px-3 py-1 rounded-full text-[11px] font-semibold ${statusPillBg}`}
+                          >
+                            {param.trend || 'Stable'}
+                          </span>
+                        </td>
+
+                        {/* Chevron */}
+                        <td className="py-3.5 px-2 text-right">
+                          <ChevronRight className="w-4 h-4 text-slate-500 group-hover:text-slate-200 transition-colors" />
                         </td>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
-          )}
+          </div>
+        )}
+      </main>
 
-          {/* Disclaimer */}
-          <div className="p-4 rounded-2xl bg-slate-900/40 border border-white/[0.05] text-xs text-slate-500">
-            <strong className="text-slate-400">Note:</strong> Changes are shown as numbers only. HealthForm AI does not label these changes as "improvements" or "worsenings" — only your doctor can interpret what these changes mean for your health.
+      {/* ── Report Selector Modal (Modal to pick up to 3 reports) ── */}
+      {selectorOpen && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="rounded-3xl bg-slate-900 border border-white/10 w-full max-w-xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden animate-fade-in-up">
+            {/* Modal Header */}
+            <div className="p-5 border-b border-white/[0.08] flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-bold text-white">Select Reports to Compare</h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Choose 2 or 3 reports from your analyzed test history.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectorOpen(false)}
+                className="w-8 h-8 rounded-full bg-white/[0.05] hover:bg-white/[0.1] text-slate-400 hover:text-white flex items-center justify-center transition-all"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Modal List */}
+            <div className="p-5 overflow-y-auto space-y-2.5 flex-1 divide-y divide-white/[0.04]">
+              {allReports.map((rep) => {
+                const isSelected = selectedIds.includes(rep.id);
+                return (
+                  <div
+                    key={rep.id}
+                    onClick={() => toggleSelectReport(rep.id)}
+                    className={`flex items-center justify-between p-3.5 rounded-2xl border transition-all cursor-pointer ${
+                      isSelected
+                        ? 'bg-blue-600/15 border-blue-500/50 shadow-md shadow-blue-500/10'
+                        : 'bg-slate-950/40 border-white/[0.05] hover:bg-white/[0.03] hover:border-white/10'
+                    }`}
+                  >
+                    <div className="flex items-center space-x-3.5 min-w-0">
+                      <ReportThumbnail type={rep.document_type || 'CBC Report'} size="sm" />
+                      <div className="min-w-0">
+                        <h4 className="text-xs font-bold text-white truncate">
+                          {rep.filename || 'Laboratory Report'}
+                        </h4>
+                        <div className="flex items-center space-x-2 text-[11px] text-slate-400 mt-0.5 font-mono">
+                          <span>{formatShortDate(rep.report_date || rep.upload_date)}</span>
+                          <span>•</span>
+                          <span>{rep.parameters_count || 12} tests</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Checkbox badge */}
+                    <div
+                      className={`w-6 h-6 rounded-full flex items-center justify-center border transition-all ${
+                        isSelected
+                          ? 'bg-blue-600 border-blue-500 text-white'
+                          : 'border-white/20 text-transparent'
+                      }`}
+                    >
+                      <Check className="w-3.5 h-3.5 stroke-[3]" />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 border-t border-white/[0.08] bg-slate-950/60 flex items-center justify-between">
+              <span className="text-xs text-slate-400">
+                {selectedIds.length} of 3 reports selected
+              </span>
+              <button
+                type="button"
+                onClick={() => setSelectorOpen(false)}
+                className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold transition-all cursor-pointer"
+              >
+                Apply Comparison
+              </button>
+            </div>
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 };
 

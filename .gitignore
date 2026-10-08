@@ -68,3 +68,9 @@ Desktop.ini
 *.db
 *.sqlite
 *.sqlite3
+
+# Temporary & Local Debug Scripts
+test_pipeline_timing.py
+backend/test_api.py
+backend/test_list_reports.py
+backend/package-lock.json

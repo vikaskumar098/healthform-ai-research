@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import AppLayout from './layouts/AppLayout';
+import DashboardLayout from './layouts/DashboardLayout';
 
 // Pages
 import LandingPage from './pages/LandingPage';
@@ -15,6 +16,7 @@ import ResearchDashboardPage from './pages/ResearchDashboardPage';
 import ReportHistoryPage from './pages/ReportHistoryPage';
 import SettingsPage from './pages/SettingsPage';
 import ProfilePage from './pages/ProfilePage';
+import AnalysisDetailsPage from './pages/AnalysisDetailsPage';
 
 // Protected Route: redirects unauthenticated users to login
 const ProtectedRoute = ({ children }) => {
@@ -39,22 +41,32 @@ function AppRoutes() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
 
-      {/* Main Website and Dashboard routes with AppLayout */}
+      {/* Main Website and Dashboard routes with AppLayout (top Navbar & Footer) */}
       <Route element={<AppLayout />}>
         {/* Public */}
         <Route path="/" element={<LandingPage />} />
 
-        {/* Protected — core user journey */}
-        <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
-        <Route path="/upload" element={<ProtectedRoute><UploadPage /></ProtectedRoute>} />
-        <Route path="/reports/:id" element={<ProtectedRoute><ReportAnalysisPage /></ProtectedRoute>} />
-        <Route path="/history" element={<ProtectedRoute><ReportHistoryPage /></ProtectedRoute>} />
-        <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
-        <Route path="/comparison" element={<ProtectedRoute><HistoricalComparisonPage /></ProtectedRoute>} />
+        {/* Authenticated Dashboard Shell (Top Navbar + Left AppSidebar + Main Content Area) */}
+        <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/upload" element={<UploadPage />} />
+          <Route path="/my-reports" element={<ReportHistoryPage />} />
+          <Route path="/reports" element={<ReportHistoryPage />} />
+          <Route path="/history" element={<ReportHistoryPage />} />
+          <Route path="/comparison" element={<HistoricalComparisonPage />} />
+          <Route path="/compare" element={<Navigate to="/comparison" replace />} />
+          <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/reports/:id/details" element={<AnalysisDetailsPage />} />
+          <Route path="/analysis-details/:id" element={<AnalysisDetailsPage />} />
+          <Route path="/analysis-details" element={<AnalysisDetailsPage />} />
+        </Route>
 
-        {/* Advanced / research pages (kept but not in main nav) */}
+        {/* Dedicated Report Analysis Interactive View */}
+        <Route path="/reports/:id" element={<ProtectedRoute><ReportAnalysisPage /></ProtectedRoute>} />
+
+        {/* Advanced / research pages */}
         <Route path="/research" element={<ProtectedRoute><ResearchDashboardPage /></ProtectedRoute>} />
-        <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
 
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />
